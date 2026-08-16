@@ -173,13 +173,38 @@
 
   function allDays() { return getAllDays(includeOptional()); }
 
-  function parisNow() {
-    return new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+  function parisDateParts(date = new Date()) {
+    const parts = {};
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/Paris",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(date).forEach(({ type, value }) => { parts[type] = value; });
+    return {
+      year: Number(parts.year),
+      month: Number(parts.month),
+      day: Number(parts.day),
+      hour: Number(parts.hour),
+      minute: Number(parts.minute),
+    };
   }
 
   function parisTodayIso() {
-    const d = parisNow();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });
+  }
+
+  function parisTomorrowIso() {
+    const [y, m, d] = parisTodayIso().split("-").map(Number);
+    return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+  }
+
+  function parisTimeMinutes() {
+    const p = parisDateParts();
+    return p.hour * 60 + p.minute;
   }
 
   function parseActivityStart(timeStr) {
@@ -190,8 +215,7 @@
 
   function getNextActivity(day) {
     const done = loadActivityDone();
-    const now = parisNow();
-    const cur = now.getHours() * 60 + now.getMinutes();
+    const cur = parisTimeMinutes();
     let next = null;
     day.activities.forEach((a) => {
       if (done[a.key]) return;
@@ -212,9 +236,9 @@
     if (!n) return `<div class="next-banner done">\u2713 Todas as atividades de hoje conclu\u00eddas!</div>`;
     const t = parseActivityStart(n.activity.time);
     const timeLabel = t ? `${String(t.h).padStart(2, "0")}:${String(t.m).padStart(2, "0")}` : n.activity.time;
-    const minsLeft = n.mins != null ? n.mins - (parisNow().getHours() * 60 + parisNow().getMinutes()) : null;
+    const minsLeft = n.mins != null ? n.mins - parisTimeMinutes() : null;
     const soon = minsLeft != null && minsLeft <= 60 && minsLeft >= 0 ? ` \u00b7 em ${minsLeft} min` : "";
-    return `<div class="next-banner${n.mins != null && n.mins - (parisNow().getHours() * 60 + parisNow().getMinutes()) <= 30 ? " urgent" : ""}">
+    return `<div class="next-banner${n.mins != null && n.mins - parisTimeMinutes() <= 30 ? " urgent" : ""}">
       <span class="nb-label">\uD83D\uDD14 Pr\u00f3xima atividade</span>
       <strong>${timeLabel} \u2014 ${n.activity.title}</strong>
       ${n.activity.place ? `<small>\uD83D\uDCCD ${n.activity.place}${soon}</small>` : `<small>${soon}</small>`}
@@ -239,7 +263,11 @@
 
   function updateParisClock() {
     if (!parisClock) return;
-    const t = parisNow().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+    const t = new Date().toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Europe/Paris",
+    });
     parisClock.textContent = `\uD83D\uDD50 Paris ${t}`;
   }
 
@@ -416,9 +444,7 @@
     if (meta.lastCheck === today) return;
     meta.lastCheck = today;
     saveJSON(KEYS.notifyMeta, meta);
-    const tomorrow = new Date(parisNow());
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tIso = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+    const tIso = parisTomorrowIso();
     const dates = loadDates();
     for (const [id, date] of Object.entries(dates)) {
       if (date !== tIso) continue;
