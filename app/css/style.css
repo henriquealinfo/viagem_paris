@@ -52,17 +52,19 @@ body {
 
 .header-tools {
   display: flex;
-  gap: 0.35rem;
+  gap: 0.25rem;
   flex-shrink: 0;
+  position: relative;
+  z-index: 2;
 }
 
 .btn-tool {
   background: rgba(255,255,255,0.2);
   border: none;
   color: var(--white);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  padding: 0.5rem 0.65rem;
+  padding: 0.45rem 0.55rem;
   border-radius: 10px;
   cursor: pointer;
   min-height: 44px;
@@ -1000,14 +1002,15 @@ body:has(.install-banner:not(.hidden)) .app-header { margin-top: 48px; }
 .search-overlay {
   position: fixed;
   inset: 0;
-  z-index: 200;
-  background: rgba(0, 0, 0, 0.55);
+  z-index: 600;
+  background: rgba(0, 0, 0, 0.65);
   display: flex;
   align-items: flex-start;
   justify-content: center;
   padding: 1rem;
   padding-top: calc(1rem + env(safe-area-inset-top, 0px));
 }
+body.search-open { overflow: hidden; }
 .search-panel {
   background: var(--cream);
   border-radius: var(--radius);
@@ -1062,7 +1065,7 @@ body:has(.install-banner:not(.hidden)) .app-header { margin-top: 48px; }
 .search-hit strong { display: block; font-size: 1rem; margin: 0.15rem 0; }
 .search-hit small { color: var(--text-soft); font-size: 0.8rem; }
 .search-hit .sh-day { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
-.search-empty { padding: 1.5rem; text-align: center; color: var(--text-soft); }
+.search-empty { padding: 1.5rem 1rem; text-align: center; color: var(--text-soft); line-height: 1.45; }
 
 .file-label {
   display: block;

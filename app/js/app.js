@@ -254,13 +254,25 @@
     });
   }
 
+  function normalizeSearch(text) {
+    return (text || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+  }
+
   function searchActivities(query) {
-    const q = query.trim().toLowerCase();
+    const q = normalizeSearch(query.trim());
     if (!q) return [];
     const results = [];
     allDays().forEach((day) => {
+      const dayHay = normalizeSearch(`${day.title} ${day.summary || ""} ${day.weekday || ""}`);
+      if (dayHay.includes(q)) {
+        day.activities.forEach((a) => results.push({ day, activity: a }));
+        return;
+      }
       day.activities.forEach((a) => {
-        const hay = `${a.title} ${a.place || ""} ${a.desc || ""} ${a.transport || ""}`.toLowerCase();
+        const hay = normalizeSearch(`${a.title} ${a.place || ""} ${a.desc || ""} ${a.transport || ""}`);
         if (hay.includes(q)) results.push({ day, activity: a });
       });
     });
@@ -268,34 +280,45 @@
   }
 
   function renderSearchResults(q) {
-    const items = searchActivities(q);
-    if (!q.trim()) { searchResults.innerHTML = ""; return; }
+    if (!searchResults) return;
+    const query = (q || "").trim();
+    if (!query) {
+      searchResults.innerHTML = `<p class="search-empty">Digite um lugar ou atividade — ex.: Louvre, Disney, Torre...</p>`;
+      return;
+    }
+    const items = searchActivities(query);
     if (!items.length) {
-      searchResults.innerHTML = `<p class="search-empty">Nenhum resultado para "${q}"</p>`;
+      searchResults.innerHTML = `<p class="search-empty">Nenhum resultado para "${query}"</p>`;
       return;
     }
     searchResults.innerHTML = items.map(({ day, activity: a }) => `
-      <button type="button" class="search-hit" data-go-day="${day.id}">
+      <button type="button" class="search-hit" data-go-day="${day.id}" data-act-key="${a.key}">
         <span class="sh-day" style="color:${day.color}">Dia ${day.id}</span>
         <strong>${a.title}</strong>
         <small>${a.time}${a.place ? ` \u00b7 ${a.place}` : ""}</small>
       </button>`).join("");
-    searchResults.querySelectorAll("[data-go-day]").forEach((btn, i) => {
+    searchResults.querySelectorAll(".search-hit").forEach((btn) => {
       btn.addEventListener("click", () => {
+        const dayId = Number(btn.dataset.goDay);
+        const actKey = btn.dataset.actKey;
         closeSearch();
-        showDay(Number(btn.dataset.goDay));
+        showDay(dayId, false, actKey);
       });
     });
   }
 
   function openSearch() {
-    searchOverlay?.classList.remove("hidden");
-    searchInput?.focus();
+    if (onboarding && !onboarding.classList.contains("hidden")) completeOnboarding();
+    if (!searchOverlay) return;
+    searchOverlay.classList.remove("hidden");
+    document.body.classList.add("search-open");
     renderSearchResults(searchInput?.value || "");
+    requestAnimationFrame(() => searchInput?.focus());
   }
 
   function closeSearch() {
     searchOverlay?.classList.add("hidden");
+    document.body.classList.remove("search-open");
     if (searchInput) searchInput.value = "";
     if (searchResults) searchResults.innerHTML = "";
   }
@@ -624,7 +647,7 @@
 
     if (compact) {
       return `
-        <article class="activity-compact${a.highlight ? " highlight" : ""}${doneCls}">
+        <article class="activity-compact${a.highlight ? " highlight" : ""}${doneCls}" id="act-${a.key}">
           <div class="ac-time">${a.time}</div>
           <div class="ac-body">
             <h3>${a.title} ${reserveBadge}</h3>
@@ -638,7 +661,7 @@
     }
 
     return `
-      <article class="activity-card${a.highlight ? " highlight" : ""}${doneCls}">
+      <article class="activity-card${a.highlight ? " highlight" : ""}${doneCls}" id="act-${a.key}">
         <div class="activity-img-wrap">
           ${imgTag(a)}
           <span class="time-badge">${a.time}</span>
@@ -824,7 +847,7 @@
     main.querySelectorAll(".day-card").forEach((b) => b.addEventListener("click", () => showDay(Number(b.dataset.day))));
   }
 
-  function showDay(dayId, fromToday) {
+  function showDay(dayId, fromToday, activityKey) {
     selectedDay = findDay(dayId, includeOptional());
     if (!selectedDay) return;
     currentView = fromToday ? "today-detail" : "day-detail";
@@ -834,6 +857,11 @@
     btnBack.classList.remove("hidden");
     main.innerHTML = renderDayContent(selectedDay, false);
     bindDayDateInputs();
+    if (activityKey) {
+      requestAnimationFrame(() => {
+        document.getElementById(`act-${activityKey}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
   }
 
   function renderReservationCard(r) {
@@ -1268,6 +1296,10 @@
   searchInput?.addEventListener("input", (e) => renderSearchResults(e.target.value));
   document.getElementById("search-close")?.addEventListener("click", closeSearch);
   searchOverlay?.addEventListener("click", (e) => { if (e.target === searchOverlay) closeSearch(); });
+  document.querySelector(".search-panel")?.addEventListener("click", (e) => e.stopPropagation());
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && searchOverlay && !searchOverlay.classList.contains("hidden")) closeSearch();
+  });
 
   navBtns.forEach((btn) => btn.addEventListener("click", () => navigate(btn.dataset.view)));
 

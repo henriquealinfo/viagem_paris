@@ -1,5 +1,5 @@
 /** Dados da viagem — Paris 5 dias */
-const APP_VERSION = "3.0.0";
+const APP_VERSION = "3.0.1";
 
 const TRIP = {
   title: "Viagem à Paris",
