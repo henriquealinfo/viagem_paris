@@ -1,5 +1,5 @@
 /** Dados da viagem — Paris 5 dias */
-const APP_VERSION = "2.0.0";
+const APP_VERSION = "3.0.0";
 
 const TRIP = {
   title: "Viagem à Paris",
@@ -91,7 +91,38 @@ const IMAGES_REMOTE = {
   hotel: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/H%C3%B4tel_des_Invalides%2C_Paris%2C_France.jpg/800px-H%C3%B4tel_des_Invalides%2C_Paris%2C_France.jpg",
 };
 
-const IMAGES = { ...IMAGES_REMOTE };
+const IMAGES = {};
+Object.keys(IMAGES_REMOTE).forEach((k) => {
+  IMAGES[k] = `images/${k}.svg`;
+});
+IMAGES.versailles = "images/versailles.svg";
+
+function getAllDays(includeOptional) {
+  return includeOptional ? [...DAYS, OPTIONAL_DAY] : [...DAYS];
+}
+
+function findDay(id, includeOptional) {
+  return getAllDays(includeOptional).find((d) => d.id === Number(id));
+}
+
+const OPTIONAL_DAY = {
+  id: 6, emoji: "👑", optional: true, weekday: "Sábado (opcional)", title: "Versailles",
+  color: "#5D4037", accent: "#EFEBE9",
+  summary: "Dia opcional — Palácio de Versailles (~1h de trem de Paris).",
+  activities: [
+    { time: "08h00", title: "Saída de Paris", place: "Gare Saint-Lazare", desc: "Trem RER C ou SNCF até Versailles.", transport: "RER C", priceEur: "0 – 8", image: IMAGES.versailles, link: { label: "Bilhetes trem", url: "https://www.sncf-connect.com/" } },
+    { time: "09h30 – 13h", title: "Palácio de Versailles", place: "Château de Versailles", desc: "Salão dos Espelhos, apartamentos reais e jardins.", transport: "A pé", priceEur: "21 – 32", priceNote: "Palácio + jardins ~€32", image: IMAGES.versailles, highlight: true, needsReservation: true, link: { label: "Reservar Versailles", url: "https://www.chateauversailles.fr/visit/tickets" } },
+    { time: "13h – 14h", title: "Almoço", place: "Versailles", priceEur: "15 – 25", image: IMAGES.jantar },
+    { time: "14h – 17h", title: "Jardins e Grand Trianon", place: "Versailles", desc: "Passeio pelos jardins (grátis nov–mar, exc. Musical Fountains).", transport: "A pé", priceEur: "0 – 12", image: IMAGES.versailles },
+    { time: "18h", title: "Retorno a Paris", place: "Paris", transport: "RER C", priceEur: "0 – 8", image: IMAGES.aeroporto },
+  ],
+};
+
+OPTIONAL_DAY.activities.forEach((a, idx) => {
+  a.key = `6-${idx}`;
+  a.imageFallback = IMG_FALLBACK;
+  if (!a.maps && a.place) a.maps = mapsUrl(a.place);
+});
 
 const RESERVATIONS = [
   { id: "louvre", name: "Museu do Louvre", icon: "🎨", url: "https://ticket.louvre.fr/en", dayId: 2, defaultTime: "09:30" },
@@ -101,6 +132,7 @@ const RESERVATIONS = [
   { id: "orsay", name: "Musée d'Orsay", icon: "🖼️", url: "https://billetterie.musee-orsay.fr/en-GB", dayId: 5, defaultTime: "10:30" },
   { id: "notredame", name: "Notre-Dame", icon: "⛪", url: "https://www.notredamedeparis.fr/en/visit/opening-times-and-access", dayId: 1, defaultTime: "14:00" },
   { id: "navigo", name: "Navigo semanal", icon: "🚇", url: "https://www.iledefrance-mobilites.fr/en/tickets-fares/detail/navigo-weekly-ticket", dayId: 1, defaultTime: "" },
+  { id: "versailles", name: "Palácio de Versailles", icon: "👑", url: "https://www.chateauversailles.fr/visit/tickets", dayId: 6, defaultTime: "09:30" },
 ];
 
 function mapsUrl(place) {
@@ -198,15 +230,15 @@ const BOOKING_LINKS = [
 ];
 
 const LOUVRE_FREE = [
-  { date: "02/01/2026", day: "Sexta", time: "18h – 21h45" },
-  { date: "06/02/2026", day: "Sexta", time: "18h – 21h45" },
-  { date: "06/03/2026", day: "Sexta", time: "18h – 21h45" },
-  { date: "03/04/2026", day: "Sexta", time: "18h – 21h45" },
-  { date: "05/06/2026", day: "Sexta", time: "18h – 21h45" },
-  { date: "04/09/2026", day: "Sexta", time: "18h – 21h45" },
-  { date: "02/10/2026", day: "Sexta", time: "18h – 21h45" },
-  { date: "06/11/2026", day: "Sexta", time: "18h – 21h45" },
-  { date: "04/12/2026", day: "Sexta", time: "18h – 21h45" },
+  { date: "02/01/2026", iso: "2026-01-02", day: "Sexta", time: "18h – 21h45" },
+  { date: "06/02/2026", iso: "2026-02-06", day: "Sexta", time: "18h – 21h45" },
+  { date: "06/03/2026", iso: "2026-03-06", day: "Sexta", time: "18h – 21h45" },
+  { date: "03/04/2026", iso: "2026-04-03", day: "Sexta", time: "18h – 21h45" },
+  { date: "05/06/2026", iso: "2026-06-05", day: "Sexta", time: "18h – 21h45" },
+  { date: "04/09/2026", iso: "2026-09-04", day: "Sexta", time: "18h – 21h45" },
+  { date: "02/10/2026", iso: "2026-10-02", day: "Sexta", time: "18h – 21h45" },
+  { date: "06/11/2026", iso: "2026-11-06", day: "Sexta", time: "18h – 21h45" },
+  { date: "04/12/2026", iso: "2026-12-04", day: "Sexta", time: "18h – 21h45" },
 ];
 
 const WEATHER_CODES = {

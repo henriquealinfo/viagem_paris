@@ -1,33 +1,65 @@
-{
-  "name": "Paris — Nossa Viagem",
-  "short_name": "Paris",
-  "description": "Roteiro de 5 dias em Paris com fotos, preços, reservas e checklist",
-  "start_url": "./index.html",
-  "scope": "./",
-  "display": "standalone",
-  "background_color": "#1F4E79",
-  "theme_color": "#1F4E79",
-  "orientation": "portrait",
-  "lang": "pt-BR",
-  "icons": [
-    {
-      "src": "icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
-  ]
-}
-
+{
+
+  "name": "Paris — Nossa Viagem",
+
+  "short_name": "Paris",
+
+  "description": "Roteiro de 5 dias em Paris com fotos, preços, reservas, checklist e modo offline",
+
+  "start_url": "./index.html",
+
+  "scope": "./",
+
+  "display": "standalone",
+
+  "background_color": "#1F4E79",
+
+  "theme_color": "#1F4E79",
+
+  "orientation": "portrait",
+
+  "lang": "pt-BR",
+
+  "icons": [
+
+    {
+
+      "src": "icons/icon-192.png",
+
+      "sizes": "192x192",
+
+      "type": "image/png",
+
+      "purpose": "any"
+
+    },
+
+    {
+
+      "src": "icons/icon-512.png",
+
+      "sizes": "512x512",
+
+      "type": "image/png",
+
+      "purpose": "any"
+
+    },
+
+    {
+
+      "src": "icons/icon-512.png",
+
+      "sizes": "512x512",
+
+      "type": "image/png",
+
+      "purpose": "maskable"
+
+    }
+
+  ]
+
+}
+
+

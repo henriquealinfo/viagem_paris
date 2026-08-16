@@ -8,18 +8,28 @@
     settings: "paris-trip-settings",
     reservations: "paris-trip-reservations",
     activityDone: "paris-trip-activity-done",
+    activityNotes: "paris-trip-activity-notes",
+    actualSpending: "paris-trip-actual-spending",
+    emergencyData: "paris-trip-emergency-data",
     onboarding: "paris-trip-onboarding-done",
     visitCount: "paris-trip-visit-count",
     exchangeMeta: "paris-trip-exchange-meta",
     installDismissed: "paris-trip-install-dismissed",
+    notifyMeta: "paris-trip-notify-meta",
   };
 
   const main = document.getElementById("app-main");
   const pageTitle = document.getElementById("page-title");
   const pageSubtitle = document.getElementById("page-subtitle");
+  const parisClock = document.getElementById("paris-clock");
   const btnBack = document.getElementById("btn-back");
   const btnFont = document.getElementById("btn-font");
   const btnTheme = document.getElementById("btn-theme");
+  const btnContrast = document.getElementById("btn-contrast");
+  const btnSearch = document.getElementById("btn-search");
+  const searchOverlay = document.getElementById("search-overlay");
+  const searchInput = document.getElementById("search-input");
+  const searchResults = document.getElementById("search-results");
   const toast = document.getElementById("toast");
   const splash = document.getElementById("splash");
   const onboarding = document.getElementById("onboarding");
@@ -46,7 +56,7 @@
   }
 
   function loadSettings() {
-    return loadJSON(KEYS.settings, { largeFont: false, dark: false });
+    return loadJSON(KEYS.settings, { largeFont: false, dark: false, highContrast: false, showVersailles: false, notifications: true });
   }
 
   function saveSettings(s) {
@@ -131,10 +141,279 @@
   function applySettings(s) {
     document.documentElement.classList.toggle("large-font", s.largeFont);
     document.documentElement.classList.toggle("dark-mode", s.dark);
-    btnFont.classList.toggle("active", s.largeFont);
-    btnTheme.textContent = s.dark ? "☀️" : "🌙";
+    document.documentElement.classList.toggle("high-contrast", s.highContrast);
+    btnFont?.classList.toggle("active", s.largeFont);
+    btnTheme.textContent = s.dark ? "\u2600\uFE0F" : "\uD83C\uDF19";
+    btnContrast?.classList.toggle("active", s.highContrast);
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.content = s.dark ? "#0d1b2a" : "#1F4E79";
+    if (meta) meta.content = s.highContrast ? "#000" : s.dark ? "#0d1b2a" : "#1F4E79";
+  }
+
+  function loadEmergency() {
+    return { ...TRIP.emergency, ...loadJSON(KEYS.emergencyData, {}) };
+  }
+
+  function saveEmergencyField(field, value) {
+    const d = loadJSON(KEYS.emergencyData, {});
+    d[field] = value;
+    saveJSON(KEYS.emergencyData, d);
+  }
+
+  function loadNotes() { return loadJSON(KEYS.activityNotes, {}); }
+  function saveNote(key, value) {
+    const n = loadNotes(); n[key] = value; saveJSON(KEYS.activityNotes, n);
+  }
+
+  function loadActualSpending() { return loadJSON(KEYS.actualSpending, {}); }
+  function saveActualSpending(dayId, value) {
+    const s = loadActualSpending(); s[dayId] = value; saveJSON(KEYS.actualSpending, s);
+  }
+
+  function includeOptional() { return loadSettings().showVersailles; }
+
+  function allDays() { return getAllDays(includeOptional()); }
+
+  function parisNow() {
+    return new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+  }
+
+  function parisTodayIso() {
+    const d = parisNow();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  function parseActivityStart(timeStr) {
+    const m = (timeStr || "").match(/(\d{1,2})h(\d{2})?/);
+    if (!m) return null;
+    return { h: Number(m[1]), m: Number(m[2] || 0) };
+  }
+
+  function getNextActivity(day) {
+    const done = loadActivityDone();
+    const now = parisNow();
+    const cur = now.getHours() * 60 + now.getMinutes();
+    let next = null;
+    day.activities.forEach((a) => {
+      if (done[a.key]) return;
+      const t = parseActivityStart(a.time);
+      if (!t) return;
+      const mins = t.h * 60 + t.m;
+      if (mins >= cur && (!next || mins < next.mins)) next = { activity: a, mins };
+    });
+    if (!next) {
+      const pending = day.activities.find((a) => !done[a.key]);
+      if (pending) next = { activity: pending, mins: null };
+    }
+    return next;
+  }
+
+  function nextActivityBanner(day) {
+    const n = getNextActivity(day);
+    if (!n) return `<div class="next-banner done">\u2713 Todas as atividades de hoje conclu\u00eddas!</div>`;
+    const t = parseActivityStart(n.activity.time);
+    const timeLabel = t ? `${String(t.h).padStart(2, "0")}:${String(t.m).padStart(2, "0")}` : n.activity.time;
+    const minsLeft = n.mins != null ? n.mins - (parisNow().getHours() * 60 + parisNow().getMinutes()) : null;
+    const soon = minsLeft != null && minsLeft <= 60 && minsLeft >= 0 ? ` \u00b7 em ${minsLeft} min` : "";
+    return `<div class="next-banner${n.mins != null && n.mins - (parisNow().getHours() * 60 + parisNow().getMinutes()) <= 30 ? " urgent" : ""}">
+      <span class="nb-label">\uD83D\uDD14 Pr\u00f3xima atividade</span>
+      <strong>${timeLabel} \u2014 ${n.activity.title}</strong>
+      ${n.activity.place ? `<small>\uD83D\uDCCD ${n.activity.place}${soon}</small>` : `<small>${soon}</small>`}
+    </div>`;
+  }
+
+  function louvreAlertHtml() {
+    const tripDates = Object.values(loadDates()).filter(Boolean);
+    if (!tripDates.length) return "";
+    const tripSet = new Set(tripDates);
+    const match = LOUVRE_FREE.find((r) => tripSet.has(r.iso));
+    if (match) {
+      return `<div class="alert-box louvre-match"><strong>\uD83C\uDFA8 Louvre gr\u00e1tis coincide!</strong> ${formatDateBR(match.iso)} (${match.time}). Reserva obrigat\u00f3ria!</div>`;
+    }
+    const octFree = LOUVRE_FREE.find((r) => r.iso === "2026-10-02");
+    const inOct = tripDates.some((d) => d.startsWith("2026-10"));
+    if (inOct && octFree) {
+      return `<div class="alert-box louvre-warn"><strong>Louvre gr\u00e1tis n\u00e3o coincide</strong> com sua viagem. A sexta gr\u00e1tis de outubro \u00e9 ${octFree.date} \u2014 sua viagem \u00e9 11\u201315/out. Ingresso pago (~\u20ac22).</div>`;
+    }
+    return "";
+  }
+
+  function updateParisClock() {
+    if (!parisClock) return;
+    const t = parisNow().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+    parisClock.textContent = `\uD83D\uDD50 Paris ${t}`;
+  }
+
+  function activityNoteHtml(a) {
+    const note = loadNotes()[a.key] || "";
+    return `<label class="act-note-label">\uD83D\uDCDD Observa\u00e7\u00e3o<textarea rows="2" data-note="${a.key}" placeholder="Ex.: port\u00e3o B, senha do guia...">${note}</textarea></label>`;
+  }
+
+  function bindActivityNotes() {
+    main.querySelectorAll("[data-note]").forEach((ta) => {
+      ta.addEventListener("change", (e) => saveNote(e.target.dataset.note, e.target.value));
+    });
+  }
+
+  function searchActivities(query) {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    const results = [];
+    allDays().forEach((day) => {
+      day.activities.forEach((a) => {
+        const hay = `${a.title} ${a.place || ""} ${a.desc || ""} ${a.transport || ""}`.toLowerCase();
+        if (hay.includes(q)) results.push({ day, activity: a });
+      });
+    });
+    return results;
+  }
+
+  function renderSearchResults(q) {
+    const items = searchActivities(q);
+    if (!q.trim()) { searchResults.innerHTML = ""; return; }
+    if (!items.length) {
+      searchResults.innerHTML = `<p class="search-empty">Nenhum resultado para "${q}"</p>`;
+      return;
+    }
+    searchResults.innerHTML = items.map(({ day, activity: a }) => `
+      <button type="button" class="search-hit" data-go-day="${day.id}">
+        <span class="sh-day" style="color:${day.color}">Dia ${day.id}</span>
+        <strong>${a.title}</strong>
+        <small>${a.time}${a.place ? ` \u00b7 ${a.place}` : ""}</small>
+      </button>`).join("");
+    searchResults.querySelectorAll("[data-go-day]").forEach((btn, i) => {
+      btn.addEventListener("click", () => {
+        closeSearch();
+        showDay(Number(btn.dataset.goDay));
+      });
+    });
+  }
+
+  function openSearch() {
+    searchOverlay?.classList.remove("hidden");
+    searchInput?.focus();
+    renderSearchResults(searchInput?.value || "");
+  }
+
+  function closeSearch() {
+    searchOverlay?.classList.add("hidden");
+    if (searchInput) searchInput.value = "";
+    if (searchResults) searchResults.innerHTML = "";
+  }
+
+  function buildFullShareUrl() {
+    const base = TRIP.appUrl.replace(/\/$/, "");
+    const params = new URLSearchParams();
+    const dates = loadDates();
+    const pairs = Object.entries(dates).filter(([, v]) => v).map(([k, v]) => `${k}:${v}`).join(",");
+    if (pairs) params.set("datas", pairs);
+    const res = loadJSON(KEYS.reservations, {});
+    const rp = RESERVATIONS.map((r) => {
+      const d = res[r.id] || {};
+      return `${r.id}:${d.date || ""}|${d.time || ""}|${encodeURIComponent(d.code || "")}`;
+    }).filter((x) => !x.endsWith(":||")).join(",");
+    if (rp) params.set("reservas", rp);
+    const qs = params.toString();
+    return qs ? `${base}/?${qs}` : `${base}/`;
+  }
+
+  function parseReservationsFromUrl() {
+    const raw = new URLSearchParams(location.search).get("reservas");
+    if (!raw) return;
+    const all = loadJSON(KEYS.reservations, {});
+    raw.split(",").forEach((chunk) => {
+      const [id, rest] = chunk.split(":");
+      if (!id || !rest) return;
+      const [date, time, codeEnc] = rest.split("|");
+      all[id] = { date: date || "", time: time || "", code: decodeURIComponent(codeEnc || "") };
+    });
+    saveJSON(KEYS.reservations, all);
+  }
+
+  function exportBackup() {
+    const payload = {
+      v: APP_VERSION,
+      exportedAt: new Date().toISOString(),
+      dates: loadDates(),
+      checklist: loadChecklist(),
+      reservations: loadJSON(KEYS.reservations, {}),
+      activityDone: loadActivityDone(),
+      activityNotes: loadNotes(),
+      actualSpending: loadActualSpending(),
+      emergencyData: loadJSON(KEYS.emergencyData, {}),
+      settings: loadSettings(),
+      exchangeMeta: loadExchangeMeta(),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `paris-backup-${parisTodayIso()}.json`;
+    a.click();
+    showToast("Backup exportado!");
+  }
+
+  function importBackup(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        if (data.dates) saveJSON(KEYS.dates, data.dates);
+        if (data.checklist) saveJSON(KEYS.checklist, data.checklist);
+        if (data.reservations) saveJSON(KEYS.reservations, data.reservations);
+        if (data.activityDone) saveJSON(KEYS.activityDone, data.activityDone);
+        if (data.activityNotes) saveJSON(KEYS.activityNotes, data.activityNotes);
+        if (data.actualSpending) saveJSON(KEYS.actualSpending, data.actualSpending);
+        if (data.emergencyData) saveJSON(KEYS.emergencyData, data.emergencyData);
+        if (data.settings) saveJSON(KEYS.settings, data.settings);
+        if (data.exchangeMeta) saveJSON(KEYS.exchangeMeta, data.exchangeMeta);
+        applySettings(loadSettings());
+        showToast("Backup restaurado!");
+        navigate("home");
+      } catch {
+        showToast("Arquivo inv\u00e1lido");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function shareReservationWhatsApp(r) {
+    const d = loadReservations()[r.id] || {};
+    let text = `\uD83C\uDFAB *${r.name}*\n`;
+    if (d.date) text += `\uD83D\uDCC5 ${formatDateBR(d.date)}\n`;
+    if (d.time) text += `\u23F0 ${d.time}\n`;
+    if (d.code) text += `\uD83C\uDFAB C\u00f3digo: ${d.code}\n`;
+    text += `\n${r.url}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  }
+
+  function checkTomorrowReminder() {
+    if (!loadSettings().notifications || !("Notification" in window)) return;
+    if (Notification.permission !== "granted") return;
+    const meta = loadJSON(KEYS.notifyMeta, {});
+    const today = parisTodayIso();
+    if (meta.lastCheck === today) return;
+    meta.lastCheck = today;
+    saveJSON(KEYS.notifyMeta, meta);
+    const tomorrow = new Date(parisNow());
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tIso = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+    const dates = loadDates();
+    for (const [id, date] of Object.entries(dates)) {
+      if (date !== tIso) continue;
+      const day = findDay(id, includeOptional());
+      if (!day) continue;
+      const body = day.id === 4 ? "Amanh\u00e3 \u00e9 Disney \u2014 saia cedo!" : `Amanh\u00e3: Dia ${day.id} \u2014 ${day.title}`;
+      try { new Notification("Paris \u2014 Lembrete", { body, icon: "icons/icon-192.png" }); } catch { /* noop */ }
+      break;
+    }
+  }
+
+  async function requestNotifications() {
+    if (!("Notification" in window)) { showToast("Notifica\u00e7\u00f5es n\u00e3o suportadas"); return; }
+    const p = await Notification.requestPermission();
+    const s = loadSettings();
+    s.notifications = p === "granted";
+    saveSettings(s);
+    showToast(p === "granted" ? "Lembretes ativados!" : "Lembretes desativados");
   }
 
   function showToast(msg) {
@@ -165,16 +444,11 @@
       if (id && date) dates[id] = date;
     });
     saveJSON(KEYS.dates, dates);
+    parseReservationsFromUrl();
   }
 
   function buildShareUrl() {
-    const dates = loadDates();
-    const pairs = Object.entries(dates)
-      .filter(([, v]) => v)
-      .map(([k, v]) => `${k}:${v}`)
-      .join(",");
-    const base = TRIP.appUrl.replace(/\/$/, "");
-    return pairs ? `${base}/?datas=${pairs}` : base + "/";
+    return buildFullShareUrl();
   }
 
   function updateShareUrl() {
@@ -217,7 +491,7 @@
 
   function tripCostRange() {
     let min = 0, max = 0;
-    DAYS.forEach((d) => {
+    allDays().forEach((d) => {
       const c = dayCostRange(d);
       min += c.min;
       max += c.max;
@@ -228,7 +502,7 @@
   }
 
   function getTodayDayId() {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = parisTodayIso();
     const dates = loadDates();
     for (const [id, date] of Object.entries(dates)) {
       if (date === today) return Number(id);
@@ -253,12 +527,12 @@
     if (!dates.length) return { type: "unknown" };
     const first = dates[0];
     const last = dates[dates.length - 1];
-    const today = new Date().toISOString().slice(0, 10);
+    const today = parisTodayIso();
     if (today < first) return { type: "countdown", days: daysBetween(today, first), first };
     if (today > last) return { type: "done" };
     const todayId = getTodayDayId();
     if (todayId) {
-      const day = DAYS.find((d) => d.id === todayId);
+      const day = findDay(todayId, includeOptional());
       return { type: "today", dayId: todayId, title: day.title, emoji: day.emoji, weekday: day.weekday };
     }
     return { type: "during" };
@@ -357,6 +631,7 @@
             ${a.place ? `<p class="place">\uD83D\uDCCD ${a.place}</p>` : ""}
             <div class="price-row"><span class="price-eur">${priceMain}</span>${brl}</div>
             ${activityDoneHtml(a)}
+            ${activityNoteHtml(a)}
             <div class="btn-row">${btns.join("")}</div>
           </div>
         </article>`;
@@ -377,6 +652,7 @@
           <div class="price-row"><span class="price-eur">${priceMain}</span>${brl}
             ${a.priceNote ? `<span class="price-note">${a.priceNote}</span>` : ""}</div>
           ${activityDoneHtml(a)}
+          ${activityNoteHtml(a)}
           <div class="btn-row">${btns.join("")}</div>
         </div>
       </article>`;
@@ -402,6 +678,7 @@
       </div>
       <div class="day-progress"><div class="progress-bar"><div class="progress-fill" style="width:${prog.total ? (prog.count / prog.total) * 100 : 0}%"></div></div>
       <span>${prog.count} de ${prog.total} atividades feitas</span></div>
+      ${compact ? nextActivityBanner(day) : ""}
       <div class="day-total"><span>Custo estimado do dia</span><span class="price">${costText}</span></div>
       <div class="timeline">${day.activities.map((a) => renderActivity(a, compact)).join("")}</div>
       <button class="btn-secondary btn-block" type="button" data-share-day="${day.id}">\uD83D\uDCF2 Compartilhar dia no WhatsApp</button>`;
@@ -423,6 +700,7 @@
         } else if (currentView === "today") renderToday();
       });
     });
+    bindActivityNotes();
   }
 
   function bindStatusBanner() {
@@ -448,10 +726,12 @@
     pageSubtitle.textContent = TRIP.subtitle;
     btnBack.classList.add("hidden");
     const prog = checklistProgress();
-    const e = TRIP.emergency;
+    const e = loadEmergency();
+    const hotelMaps = mapsUrl(e.hotelAddress.includes("preencher") ? "Paris" : e.hotelAddress);
 
     main.innerHTML = `
       ${statusBannerHtml()}
+      ${louvreAlertHtml()}
       <section class="hero">
         <div class="hero-flag">\uD83C\uDDEB\uD83C\uDDF7</div>
         <h2>${TRIP.title}</h2>
@@ -464,19 +744,27 @@
         <div class="stat-card"><span class="num">🏰</span><span class="lbl">Disney</span></div>
       </div>
       <div class="emergency-card">
-        <h3>🆘 Emergência</h3>
+        <h3>\uD83C\uDD98 Emerg\u00eancia</h3>
         <div class="emergency-grid">
-          <div><strong>Hotel</strong><br>${e.hotel}<br><small>${e.hotelAddress}</small><br>📞 ${e.hotelPhone}</div>
-          <div><strong>Contato</strong><br>${e.contactName}<br>📞 ${e.contactPhone}</div>
-          <div><strong>Europa</strong><br>🚨 ${e.emergencyEU} (geral)<br>🏥 ${e.medicalFR}<br>👮 ${e.policeFR}</div>
-          <div><strong>Embaixada BR</strong><br>${e.embassy}<br>📞 ${e.embassyPhone}</div>
+          <div class="emergency-hotel-block">
+            <strong>Hotel</strong>
+            <input class="emergency-inp" data-emg="hotel" value="${e.hotel}" placeholder="Nome do hotel">
+            <input class="emergency-inp" data-emg="hotelAddress" value="${e.hotelAddress}" placeholder="Endere\u00e7o">
+            <input class="emergency-inp" data-emg="hotelPhone" value="${e.hotelPhone}" placeholder="Telefone">
+            <div class="hotel-qr-row">
+              <a class="btn-secondary" href="${hotelMaps}" target="_blank" rel="noopener noreferrer">\uD83D\uDDFA\uFE0F Maps hotel</a>
+              <img class="hotel-qr" src="${qrUrl(hotelMaps)}" alt="QR Maps hotel" width="72" height="72">
+            </div>
+          </div>
+          <div><strong>Contato</strong><br>${e.contactName}<br>\uD83D\uDCDE ${e.contactPhone}</div>
+          <div><strong>Europa</strong><br>\uD83D\uDEA8 ${e.emergencyEU}<br>\uD83C\uDFE5 ${e.medicalFR}<br>\uD83D\uDC6E ${e.policeFR}</div>
+          <div><strong>Embaixada BR</strong><br>${e.embassy}<br>\uD83D\uDCDE ${e.embassyPhone}</div>
           <div><strong>Seguro</strong><br>${e.insurance}</div>
           <div><strong>Passaporte</strong><br>${e.passportNote}</div>
         </div>
-        ${e.hotelAddress.includes("preencher") ? `<p class="hint">Edite hotel/contatos em js/data.js</p>` : ""}
       </div>
       <h2 class="section-title">Escolha o dia</h2>
-      <div class="day-grid">${DAYS.map((d) => {
+      <div class="day-grid">${allDays().map((d) => {
         const dates = loadDates();
         const cost = dayCostRange(d);
         const ap = dayActivityProgress(d);
@@ -487,6 +775,9 @@
       }).join("")}</div>`;
 
     main.querySelectorAll(".day-card").forEach((b) => b.addEventListener("click", () => showDay(Number(b.dataset.day))));
+    main.querySelectorAll("[data-emg]").forEach((inp) => {
+      inp.addEventListener("change", (e) => saveEmergencyField(e.target.dataset.emg, e.target.value));
+    });
     bindStatusBanner();
     loadWeatherSlot(false);
   }
@@ -503,9 +794,9 @@
           <span class="empty-icon">📅</span>
           <h2>Nenhum dia configurado para hoje</h2>
           <p>Preencha a data de cada dia no roteiro, ou escolha manualmente:</p>
-          <div class="day-grid">${DAYS.map((d) => `
-            <button class="day-card" data-day="${d.id}" style="--day-color:${d.color}">
-              <span class="emoji">${d.emoji}</span><div class="info"><h3>Dia ${d.id}</h3>
+          <div class="day-grid">${allDays().map((d) => `
+            <button class="day-card" type="button" data-day="${d.id}" style="--day-color:${d.color}">
+              <span class="emoji">${d.emoji}</span><div class="info"><h3>Dia ${d.id}${d.optional ? " (opc.)" : ""}</h3>
               <p>${dates[d.id] ? formatDateBR(dates[d.id]) : d.weekday}</p></div></button>`).join("")}</div>
         </div>`;
       pageSubtitle.textContent = new Date().toLocaleDateString("pt-BR");
@@ -513,7 +804,7 @@
       return;
     }
 
-    const day = DAYS.find((d) => d.id === todayId);
+    const day = findDay(todayId, includeOptional());
     pageSubtitle.textContent = `${day.weekday} · ${formatDateBR(loadDates()[todayId])}`;
     main.innerHTML = renderDayContent(day, true);
     bindDayDateInputs();
@@ -524,13 +815,17 @@
     pageSubtitle.textContent = "5 dias em Paris";
     btnBack.classList.add("hidden");
     main.innerHTML = `<p class="intro-text">Toque no dia para ver horários, fotos, mapas e preços.</p>
-      <div class="day-grid">${DAYS.map((d) => `<button class="day-card" data-day="${d.id}" style="--day-color:${d.color}">
-        <span class="emoji">${d.emoji}</span><div class="info"><h3>Dia ${d.id}</h3><p>${d.title}</p></div><span class="arrow">›</span></button>`).join("")}</div>`;
+      <label class="toggle-row"><input type="checkbox" id="toggle-versailles" ${includeOptional() ? "checked" : ""}> Mostrar dia opcional Versailles (Dia 6)</label>
+      <div class="day-grid">${allDays().map((d) => `<button class="day-card" type="button" data-day="${d.id}" style="--day-color:${d.color}">
+        <span class="emoji">${d.emoji}</span><div class="info"><h3>Dia ${d.id}${d.optional ? " (opc.)" : ""}</h3><p>${d.title}</p></div><span class="arrow">›</span></button>`).join("")}</div>`;
+    document.getElementById("toggle-versailles")?.addEventListener("change", (e) => {
+      const s = loadSettings(); s.showVersailles = e.target.checked; saveSettings(s); renderDayPicker();
+    });
     main.querySelectorAll(".day-card").forEach((b) => b.addEventListener("click", () => showDay(Number(b.dataset.day))));
   }
 
   function showDay(dayId, fromToday) {
-    selectedDay = DAYS.find((d) => d.id === dayId);
+    selectedDay = findDay(dayId, includeOptional());
     if (!selectedDay) return;
     currentView = fromToday ? "today-detail" : "day-detail";
     setActiveNav(fromToday ? "today" : "days");
@@ -545,7 +840,7 @@
     const data = loadReservations()[r.id] || {};
     const hasCode = !!data.code?.trim();
     return `
-      <div class="wallet-card" style="--wallet-color:${DAYS.find((d) => d.id === r.dayId)?.color || "#1F4E79"}">
+      <div class="wallet-card" style="--wallet-color:${findDay(r.dayId, true)?.color || "#1F4E79"}">
         <div class="wallet-head">
           <span class="wallet-icon">${r.icon}</span>
           <div><strong>${r.name}</strong><br><small>Dia ${r.dayId}${data.date ? ` \u00b7 ${formatDateBR(data.date)}` : ""}</small></div>
@@ -557,6 +852,7 @@
         </div>
         <div class="wallet-actions">
           <a class="btn-secondary" href="${r.url}" target="_blank" rel="noopener noreferrer">Abrir bilhete \u2192</a>
+          <button class="btn-secondary" type="button" data-share-res="${r.id}">\uD83D\uDCF2 WhatsApp</button>
           ${hasCode ? `<button class="btn-secondary" type="button" data-copy-code="${data.code}">Copiar c\u00f3digo</button>` : ""}
         </div>
       </div>`;
@@ -571,6 +867,12 @@
     main.querySelectorAll("[data-copy-code]").forEach((btn) => {
       btn.addEventListener("click", () => {
         navigator.clipboard?.writeText(btn.dataset.copyCode).then(() => showToast("C\u00f3digo copiado!"));
+      });
+    });
+    main.querySelectorAll("[data-share-res]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const r = RESERVATIONS.find((x) => x.id === btn.dataset.shareRes);
+        if (r) shareReservationWhatsApp(r);
       });
     });
   }
@@ -598,17 +900,21 @@
     if (moreSubView === "checklist") return renderChecklist();
     if (moreSubView === "phrases") return renderPhrases();
     if (moreSubView === "tips") return renderTips();
+    if (moreSubView === "backup") return renderBackup();
 
     main.innerHTML = `
       <div class="more-grid">
-        <button class="more-card" data-sub="expenses">💰<span>Gastos</span></button>
-        <button class="more-card" data-sub="checklist">✅<span>Checklist</span></button>
-        <button class="more-card" data-sub="phrases">🇫🇷<span>Frases úteis</span></button>
-        <button class="more-card" data-sub="tips">💡<span>Dicas</span></button>
-        <button class="more-card" data-action="share">📲<span>WhatsApp</span></button>
-        <button class="more-card" data-action="pdf">📄<span>Exportar PDF</span></button>
-        <button class="more-card" data-action="sync">🔗<span>Sincronizar datas</span></button>
-        <button class="more-card" data-action="rate">💱<span>Atualizar câmbio</span></button>
+        <button class="more-card" type="button" data-sub="expenses">\uD83D\uDCB0<span>Gastos</span></button>
+        <button class="more-card" type="button" data-sub="checklist">\u2705<span>Checklist</span></button>
+        <button class="more-card" type="button" data-sub="phrases">\uD83C\uDDEB\uD83C\uDDF7<span>Frases</span></button>
+        <button class="more-card" type="button" data-sub="tips">\uD83D\uDCA1<span>Dicas</span></button>
+        <button class="more-card" type="button" data-action="search">\uD83D\uDD0D<span>Buscar</span></button>
+        <button class="more-card" type="button" data-sub="backup">\uD83D\uDCBE<span>Backup</span></button>
+        <button class="more-card" type="button" data-action="notify">\uD83D\uDD14<span>Lembretes</span></button>
+        <button class="more-card" type="button" data-action="share">\uD83D\uDCF2<span>WhatsApp</span></button>
+        <button class="more-card" type="button" data-action="pdf">\uD83D\uDCC4<span>Exportar PDF</span></button>
+        <button class="more-card" type="button" data-action="sync">\uD83D\uDD17<span>Sincronizar</span></button>
+        <button class="more-card" type="button" data-action="rate">\uD83D\uDCB1<span>C\u00e2mbio</span></button>
       </div>
       <footer class="app-footer">
         <p>Paris Trip App · v${APP_VERSION}</p>
@@ -622,6 +928,8 @@
     }));
     main.querySelector("[data-action=share]")?.addEventListener("click", shareAppWhatsApp);
     main.querySelector("[data-action=pdf]")?.addEventListener("click", exportPDF);
+    main.querySelector("[data-action=search]")?.addEventListener("click", openSearch);
+    main.querySelector("[data-action=notify]")?.addEventListener("click", requestNotifications);
     main.querySelector("[data-action=sync]")?.addEventListener("click", () => {
       moreSubView = "sync";
       btnBack.classList.remove("hidden");
@@ -634,25 +942,32 @@
     pageTitle.textContent = "Gastos";
     const total = tripCostRange();
     const ex = loadExchangeMeta();
+    const actual = loadActualSpending();
+    const actualTotal = Object.values(actual).reduce((s, v) => s + (Number(v) || 0), 0);
     const exLabel = ex.updatedAt
       ? `Atualizado em ${new Date(ex.updatedAt).toLocaleString("pt-BR")}`
       : "C\u00e2mbio padr\u00e3o \u2014 toque em Atualizar c\u00e2mbio";
     main.innerHTML = `
       <div class="budget-hero">
-        <span class="budget-label">Total estimado (5 dias + Navigo)</span>
+        <span class="budget-label">Total estimado (${includeOptional() ? "5 dias + Versailles + Navigo" : "5 dias + Navigo"})</span>
         <span class="budget-value">${formatEur(total.min)} \u2013 ${formatEur(total.max)}</span>
         <span class="budget-brl">${formatBrl(total.min)} \u2013 ${formatBrl(total.max)}</span>
+        ${actualTotal ? `<span class="budget-label">Gasto real registrado</span><span class="budget-value">\u20ac ${actualTotal.toFixed(0)} ${formatBrl(actualTotal)}</span>` : ""}
         <small>C\u00e2mbio: \u20ac1 = R$ ${TRIP.cambio.toFixed(2)}</small>
         <small class="ex-meta">${exLabel}</small>
       </div>
-      ${DAYS.map((d) => {
+      <p class="intro-text">Registre quanto gastou de verdade em cada dia (\u20ac):</p>
+      ${allDays().map((d) => {
         const c = dayCostRange(d);
         const dates = loadDates();
-        return `<div class="budget-row" style="border-left-color:${d.color}">
-          <div><strong>Dia ${d.id}</strong> — ${d.title}<br><small>${dates[d.id] ? formatDateBR(dates[d.id]) : d.weekday}</small></div>
-          <div class="budget-amt">${c.max === 0 ? "—" : c.min === c.max ? formatEur(c.max) : `${formatEur(c.min)}–${formatEur(c.max)}`}</div></div>`;
+        return `<div class="budget-row spending-row" style="border-left-color:${d.color}">
+          <div><strong>Dia ${d.id}</strong> \u2014 ${d.title}<br><small>Est: ${c.max === 0 ? "\u2014" : c.min === c.max ? formatEur(c.max) : `${formatEur(c.min)}\u2013${formatEur(c.max)}`}</small></div>
+          <label class="spend-inp">\u20ac<input type="number" min="0" step="1" data-spend-day="${d.id}" value="${actual[d.id] || ""}" placeholder="0"></label></div>`;
       }).join("")}
       <div class="budget-row navigo"><div><strong>Navigo semanal</strong></div><div class="budget-amt">${formatEur(TRIP.navigoSemanal)} ${formatBrl(TRIP.navigoSemanal)}</div></div>`;
+    main.querySelectorAll("[data-spend-day]").forEach((inp) => {
+      inp.addEventListener("change", (e) => saveActualSpending(e.target.dataset.spendDay, e.target.value));
+    });
   }
 
   function renderChecklist() {
@@ -718,23 +1033,40 @@
         <a class="btn-link" href="https://ticket.louvre.fr/en" target="_blank" rel="noopener">Reservar Louvre →</a></div>`;
   }
 
-  function renderSync() {
-    pageTitle.textContent = "Sincronizar";
-    pageSubtitle.textContent = "Compartilhar datas";
-    const url = buildShareUrl();
+  function renderBackup() {
+    pageTitle.textContent = "Backup";
+    pageSubtitle.textContent = "Exportar / restaurar";
     main.innerHTML = `
       <div class="sync-card">
-        <h3>🔗 Sincronizar datas</h3>
-        <p>Envie este link para sincronizar as datas entre celulares. Quem abrir o link terá as mesmas datas salvas.</p>
+        <h3>\uD83D\uDCBE Backup completo</h3>
+        <p>Salva datas, reservas, checklist, notas, gastos reais e contatos do hotel.</p>
+        <button class="btn-primary btn-block" type="button" id="btn-export-backup">Exportar backup (.json)</button>
+        <label class="btn-secondary btn-block file-label">Restaurar backup<input type="file" id="import-backup" accept="application/json" hidden></label>
+        <p class="hint">Guarde o arquivo no celular ou envie por WhatsApp/e-mail.</p>
+      </div>`;
+    document.getElementById("btn-export-backup").addEventListener("click", exportBackup);
+    document.getElementById("import-backup").addEventListener("change", (e) => {
+      if (e.target.files[0]) importBackup(e.target.files[0]);
+    });
+  }
+
+  function renderSync() {
+    pageTitle.textContent = "Sincronizar";
+    pageSubtitle.textContent = "Compartilhar dados";
+    const url = buildFullShareUrl();
+    main.innerHTML = `
+      <div class="sync-card">
+        <h3>\uD83D\uDD17 Sincronizar viagem</h3>
+        <p>Link com datas e reservas. Quem abrir ter\u00e1 os mesmos dados salvos.</p>
         <div class="sync-url">${url}</div>
-        <button class="btn-link btn-block" id="copy-sync">Copiar link</button>
-        <button class="btn-secondary btn-block" id="share-sync">📲 Enviar no WhatsApp</button>
+        <button class="btn-link btn-block" type="button" id="copy-sync">Copiar link</button>
+        <button class="btn-secondary btn-block" type="button" id="share-sync">\uD83D\uDCF2 Enviar no WhatsApp</button>
       </div>`;
     document.getElementById("copy-sync").addEventListener("click", () => {
       navigator.clipboard?.writeText(url).then(() => showToast("Link copiado!"));
     });
     document.getElementById("share-sync").addEventListener("click", () => {
-      window.open(`https://wa.me/?text=${encodeURIComponent("Roteiro Paris — datas sincronizadas:\n" + url)}`, "_blank");
+      window.open(`https://wa.me/?text=${encodeURIComponent("Roteiro Paris \u2014 dados sincronizados:\n" + url)}`, "_blank");
     });
   }
 
@@ -804,15 +1136,21 @@
       html += `<div class="qr-item"><img src="${qrUrl(r.url)}" alt="QR"><br>${r.name}</div>`;
     });
     html += `</div>`;
-    DAYS.forEach((d) => {
-      html += `<h2>Dia ${d.id} \u2014 ${d.title}${dates[d.id] ? " (" + formatDateBR(dates[d.id]) + ")" : ""}</h2>`;
+    const notes = loadNotes();
+    const actual = loadActualSpending();
+    allDays().forEach((d) => {
+      html += `<h2>Dia ${d.id} \u2014 ${d.title}${dates[d.id] ? " (" + formatDateBR(dates[d.id]) + ")" : ""}${d.optional ? " (opcional)" : ""}</h2>`;
+      if (actual[d.id]) html += `<p><strong>Gasto real:</strong> \u20ac${actual[d.id]}</p>`;
       d.activities.forEach((a) => {
         html += `<div class="act"><span class="time">${a.time}</span> \u2014 <strong>${a.title}</strong><br>`;
         if (a.place) html += `\uD83D\uDCCD ${a.place}<br>`;
         if (a.desc) html += `${a.desc}<br>`;
+        if (notes[a.key]) html += `<em>Nota: ${notes[a.key]}</em><br>`;
         html += `<span class="price">\uD83D\uDCB0 ${a.priceEur}</span></div>`;
       });
     });
+    const e = loadEmergency();
+    html += `<h2>Emerg\u00eancia</h2><p><strong>Hotel:</strong> ${e.hotel}<br>${e.hotelAddress}<br>${e.hotelPhone}</p>`;
     html += `<footer>Paris Trip App \u00b7 ${TRIP.appUrl}</footer></body></html>`;
     const w = window.open("", "_blank");
     w.document.write(html);
@@ -920,6 +1258,17 @@
     saveSettings(s);
   });
 
+  btnContrast?.addEventListener("click", () => {
+    const s = loadSettings();
+    s.highContrast = !s.highContrast;
+    saveSettings(s);
+  });
+
+  btnSearch?.addEventListener("click", openSearch);
+  searchInput?.addEventListener("input", (e) => renderSearchResults(e.target.value));
+  document.getElementById("search-close")?.addEventListener("click", closeSearch);
+  searchOverlay?.addEventListener("click", (e) => { if (e.target === searchOverlay) closeSearch(); });
+
   navBtns.forEach((btn) => btn.addEventListener("click", () => navigate(btn.dataset.view)));
 
   /* ── Init ── */
@@ -932,6 +1281,10 @@
   saveJSON(KEYS.visitCount, visits);
 
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+
+  updateParisClock();
+  setInterval(updateParisClock, 30000);
+  checkTomorrowReminder();
 
   setTimeout(() => {
     hideSplash();
