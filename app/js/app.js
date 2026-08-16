@@ -10,6 +10,7 @@
     activityDone: "paris-trip-activity-done",
     activityNotes: "paris-trip-activity-notes",
     actualSpending: "paris-trip-actual-spending",
+    expenseLog: "paris-trip-expense-log",
     emergencyData: "paris-trip-emergency-data",
     onboarding: "paris-trip-onboarding-done",
     visitCount: "paris-trip-visit-count",
@@ -164,9 +165,70 @@
     const n = loadNotes(); n[key] = value; saveJSON(KEYS.activityNotes, n);
   }
 
-  function loadActualSpending() { return loadJSON(KEYS.actualSpending, {}); }
-  function saveActualSpending(dayId, value) {
-    const s = loadActualSpending(); s[dayId] = value; saveJSON(KEYS.actualSpending, s);
+  function loadExpenseLog() {
+    let log = loadJSON(KEYS.expenseLog, null);
+    if (log === null) {
+      log = [];
+      const legacy = loadJSON(KEYS.actualSpending, {});
+      Object.entries(legacy).forEach(([dayId, amount]) => {
+        const n = Number(amount);
+        if (n > 0) {
+          log.push({
+            id: `legacy-${dayId}`,
+            dayId: Number(dayId),
+            amount: n,
+            note: "Total do dia",
+            at: new Date().toISOString(),
+          });
+        }
+      });
+      saveJSON(KEYS.expenseLog, log);
+    }
+    return log;
+  }
+
+  function saveExpenseLog(log) {
+    saveJSON(KEYS.expenseLog, log);
+  }
+
+  function expenseSummary() {
+    const log = loadExpenseLog();
+    const byDay = {};
+    let total = 0;
+    log.forEach((e) => {
+      const amt = Number(e.amount) || 0;
+      total += amt;
+      byDay[e.dayId] = (byDay[e.dayId] || 0) + amt;
+    });
+    return { total, byDay, log };
+  }
+
+  function addExpense(dayId, amount, note) {
+    const n = Number(amount);
+    if (!n || n <= 0) return false;
+    const log = loadExpenseLog();
+    log.unshift({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      dayId: Number(dayId),
+      amount: n,
+      note: (note || "").trim() || "Gasto",
+      at: new Date().toISOString(),
+    });
+    saveExpenseLog(log);
+    return true;
+  }
+
+  function deleteExpense(id) {
+    saveExpenseLog(loadExpenseLog().filter((e) => e.id !== id));
+  }
+
+  function defaultExpenseDayId() {
+    return getTodayDayId() || 1;
+  }
+
+  function loadActualSpending() {
+    const { byDay } = expenseSummary();
+    return byDay;
   }
 
   function includeOptional() { return loadSettings().showVersailles; }
@@ -389,7 +451,8 @@
       reservations: loadJSON(KEYS.reservations, {}),
       activityDone: loadActivityDone(),
       activityNotes: loadNotes(),
-      actualSpending: loadActualSpending(),
+      expenseLog: loadExpenseLog(),
+      actualSpending: expenseSummary().byDay,
       emergencyData: loadJSON(KEYS.emergencyData, {}),
       settings: loadSettings(),
       exchangeMeta: loadExchangeMeta(),
@@ -412,7 +475,8 @@
         if (data.reservations) saveJSON(KEYS.reservations, data.reservations);
         if (data.activityDone) saveJSON(KEYS.activityDone, data.activityDone);
         if (data.activityNotes) saveJSON(KEYS.activityNotes, data.activityNotes);
-        if (data.actualSpending) saveJSON(KEYS.actualSpending, data.actualSpending);
+        if (data.expenseLog) saveJSON(KEYS.expenseLog, data.expenseLog);
+        else if (data.actualSpending) saveJSON(KEYS.actualSpending, data.actualSpending);
         if (data.emergencyData) saveJSON(KEYS.emergencyData, data.emergencyData);
         if (data.settings) saveJSON(KEYS.settings, data.settings);
         if (data.exchangeMeta) saveJSON(KEYS.exchangeMeta, data.exchangeMeta);
@@ -831,6 +895,17 @@
     loadWeatherSlot(false);
   }
 
+  function openExpenses() {
+    currentView = "more";
+    moreSubView = "expenses";
+    setActiveNav("more");
+    btnBack.classList.remove("hidden");
+    pageTitle.textContent = "Gastos";
+    pageSubtitle.textContent = "Registro rápido";
+    renderExpenses();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   function renderToday() {
     pageTitle.textContent = "Hoje";
     btnBack.classList.add("hidden");
@@ -854,9 +929,14 @@
     }
 
     const day = findDay(todayId, includeOptional());
+    const todaySpent = expenseSummary().byDay[todayId] || 0;
     pageSubtitle.textContent = `${day.weekday} · ${formatDateBR(loadDates()[todayId])}`;
-    main.innerHTML = renderDayContent(day, true);
+    main.innerHTML = renderDayContent(day, true) + `
+      <button class="expense-today-btn" type="button" id="btn-add-expense">
+        \uD83D\uDCB0 ${todaySpent ? `Hoje: ${formatEur(todaySpent)} \u00b7 ` : ""}Registrar gasto
+      </button>`;
     bindDayDateInputs();
+    document.getElementById("btn-add-expense")?.addEventListener("click", openExpenses);
   }
 
   function renderDayPicker() {
@@ -994,33 +1074,111 @@
 
   function renderExpenses() {
     pageTitle.textContent = "Gastos";
+    pageSubtitle.textContent = "Registro rápido";
     const total = tripCostRange();
     const ex = loadExchangeMeta();
-    const actual = loadActualSpending();
-    const actualTotal = Object.values(actual).reduce((s, v) => s + (Number(v) || 0), 0);
+    const { total: spent, byDay, log } = expenseSummary();
+    const defaultDay = defaultExpenseDayId();
     const exLabel = ex.updatedAt
       ? `Atualizado em ${new Date(ex.updatedAt).toLocaleString("pt-BR")}`
       : "C\u00e2mbio padr\u00e3o \u2014 toque em Atualizar c\u00e2mbio";
+
+    const dayOptions = allDays().map((d) => {
+      const dates = loadDates();
+      const label = dates[d.id] ? formatDateBR(dates[d.id]) : d.weekday;
+      return `<option value="${d.id}" ${d.id === defaultDay ? "selected" : ""}>Dia ${d.id} \u2014 ${label}</option>`;
+    }).join("");
+
+    const grouped = {};
+    log.forEach((e) => {
+      if (!grouped[e.dayId]) grouped[e.dayId] = [];
+      grouped[e.dayId].push(e);
+    });
+
+    const listHtml = allDays().map((d) => {
+      const items = grouped[d.id];
+      if (!items?.length) return "";
+      const sub = byDay[d.id] || 0;
+      return `
+        <div class="expense-day-group" style="--day-color:${d.color}">
+          <div class="expense-day-head">
+            <strong>Dia ${d.id}</strong>
+            <span>${formatEur(sub)} ${formatBrl(sub)}</span>
+          </div>
+          ${items.map((e) => `
+            <div class="expense-item">
+              <div class="expense-item-main">
+                <span class="expense-amt">${formatEur(e.amount)}</span>
+                <span class="expense-note">${e.note}</span>
+              </div>
+              <button type="button" class="expense-del" data-del-exp="${e.id}" aria-label="Apagar">\u2715</button>
+            </div>`).join("")}
+        </div>`;
+    }).join("");
+
     main.innerHTML = `
       <div class="budget-hero">
-        <span class="budget-label">Total estimado (${includeOptional() ? "5 dias + Versailles + Navigo" : "5 dias + Navigo"})</span>
-        <span class="budget-value">${formatEur(total.min)} \u2013 ${formatEur(total.max)}</span>
-        <span class="budget-brl">${formatBrl(total.min)} \u2013 ${formatBrl(total.max)}</span>
-        ${actualTotal ? `<span class="budget-label">Gasto real registrado</span><span class="budget-value">\u20ac ${actualTotal.toFixed(0)} ${formatBrl(actualTotal)}</span>` : ""}
+        <span class="budget-label">Gasto registrado</span>
+        <span class="budget-value">${spent ? formatEur(spent) : "\u20ac 0"}</span>
+        <span class="budget-brl">${spent ? formatBrl(spent) : "R$ 0"}</span>
+        <span class="budget-label">Estimativa da viagem</span>
+        <span class="budget-brl">${formatEur(total.min)} \u2013 ${formatEur(total.max)} ${formatBrl(total.min)}\u2013${formatBrl(total.max)}</span>
         <small>C\u00e2mbio: \u20ac1 = R$ ${TRIP.cambio.toFixed(2)}</small>
         <small class="ex-meta">${exLabel}</small>
       </div>
-      <p class="intro-text">Registre quanto gastou de verdade em cada dia (\u20ac):</p>
-      ${allDays().map((d) => {
-        const c = dayCostRange(d);
-        const dates = loadDates();
-        return `<div class="budget-row spending-row" style="border-left-color:${d.color}">
-          <div><strong>Dia ${d.id}</strong> \u2014 ${d.title}<br><small>Est: ${c.max === 0 ? "\u2014" : c.min === c.max ? formatEur(c.max) : `${formatEur(c.min)}\u2013${formatEur(c.max)}`}</small></div>
-          <label class="spend-inp">\u20ac<input type="number" min="0" step="1" data-spend-day="${d.id}" value="${actual[d.id] || ""}" placeholder="0"></label></div>`;
-      }).join("")}
-      <div class="budget-row navigo"><div><strong>Navigo semanal</strong></div><div class="budget-amt">${formatEur(TRIP.navigoSemanal)} ${formatBrl(TRIP.navigoSemanal)}</div></div>`;
-    main.querySelectorAll("[data-spend-day]").forEach((inp) => {
-      inp.addEventListener("change", (e) => saveActualSpending(e.target.dataset.spendDay, e.target.value));
+
+      <form class="expense-quick" id="expense-form">
+        <h3 class="expense-quick-title">\u2795 Registrar gasto</h3>
+        <div class="expense-amt-row">
+          <label class="expense-field grow">
+            <span>Valor (\u20ac)</span>
+            <input type="number" id="exp-amount" min="0.01" step="0.01" inputmode="decimal" placeholder="0" required>
+          </label>
+          <label class="expense-field grow">
+            <span>O qu\u00ea?</span>
+            <input type="text" id="exp-note" placeholder="Almo\u00e7o, metr\u00f4..." maxlength="60">
+          </label>
+        </div>
+        <div class="expense-chips">
+          ${[5, 10, 15, 20, 30, 50].map((n) => `<button type="button" class="expense-chip" data-chip="${n}">\u20ac${n}</button>`).join("")}
+        </div>
+        <label class="expense-field">
+          <span>Dia</span>
+          <select id="exp-day">${dayOptions}</select>
+        </label>
+        <button class="btn-primary btn-block" type="submit">Salvar gasto</button>
+      </form>
+
+      ${log.length
+        ? `<h2 class="section-title">Hist\u00f3rico</h2>${listHtml}`
+        : `<p class="intro-text expense-empty">Nenhum gasto ainda. Use o formul\u00e1rio acima \u2014 leva 5 segundos.</p>`}`;
+
+    main.querySelector("#expense-form")?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const amount = document.getElementById("exp-amount")?.value;
+      const note = document.getElementById("exp-note")?.value;
+      const dayId = document.getElementById("exp-day")?.value;
+      if (!addExpense(dayId, amount, note)) {
+        showToast("Informe um valor v\u00e1lido");
+        return;
+      }
+      showToast(`Gasto de \u20ac${Number(amount)} registrado!`);
+      renderExpenses();
+    });
+
+    main.querySelectorAll("[data-chip]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const inp = document.getElementById("exp-amount");
+        if (inp) inp.value = btn.dataset.chip;
+        document.getElementById("exp-note")?.focus();
+      });
+    });
+
+    main.querySelectorAll("[data-del-exp]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        deleteExpense(btn.dataset.delExp);
+        renderExpenses();
+      });
     });
   }
 
@@ -1191,10 +1349,10 @@
     });
     html += `</div>`;
     const notes = loadNotes();
-    const actual = loadActualSpending();
+    const { byDay, log } = expenseSummary();
     allDays().forEach((d) => {
       html += `<h2>Dia ${d.id} \u2014 ${d.title}${dates[d.id] ? " (" + formatDateBR(dates[d.id]) + ")" : ""}${d.optional ? " (opcional)" : ""}</h2>`;
-      if (actual[d.id]) html += `<p><strong>Gasto real:</strong> \u20ac${actual[d.id]}</p>`;
+      if (byDay[d.id]) html += `<p><strong>Gastos registrados:</strong> ${formatEur(byDay[d.id])}</p>`;
       d.activities.forEach((a) => {
         html += `<div class="act"><span class="time">${a.time}</span> \u2014 <strong>${a.title}</strong><br>`;
         if (a.place) html += `\uD83D\uDCCD ${a.place}<br>`;
@@ -1203,6 +1361,13 @@
         html += `<span class="price">\uD83D\uDCB0 ${a.priceEur}</span></div>`;
       });
     });
+    if (log.length) {
+      html += `<h2>Gastos detalhados</h2><ul>`;
+      log.forEach((e) => {
+        html += `<li>Dia ${e.dayId}: ${formatEur(e.amount)} \u2014 ${e.note}</li>`;
+      });
+      html += `</ul>`;
+    }
     const e = loadEmergency();
     html += `<h2>Emerg\u00eancia</h2><p><strong>Hotel:</strong> ${e.hotel}<br>${e.hotelAddress}<br>${e.hotelPhone}</p>`;
     html += `<footer>Paris Trip App \u00b7 ${TRIP.appUrl}</footer></body></html>`;
