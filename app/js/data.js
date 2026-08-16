@@ -1,7 +1,10 @@
 /** Dados da viagem — Paris 5 dias */
+const APP_VERSION = "2.0.0";
+
 const TRIP = {
   title: "Viagem à Paris",
   subtitle: "5 dias inesquecíveis",
+  version: APP_VERSION,
   cambio: 6.2,
   navigoSemanal: 32.4,
   appUrl: "https://henriquealinfo.github.io/viagem_paris/",
@@ -66,7 +69,9 @@ const FRENCH_PHRASES = [
   { pt: "O metrô, por favor", fr: "Le métro, s'il vous plaît", note: "Pedir direções" },
 ];
 
-const IMAGES = {
+const IMG_FALLBACK = "images/placeholder.svg";
+
+const IMAGES_REMOTE = {
   aeroporto: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Paris_-_Aerial_View%2C_La_Defense%2C_Eiffel_Tower%2C_Trocad%C3%A9ro%2C_Tour_Montparnasse%2C_Notre-Dame%2C_Les_Invalides%2C_Arc_de_Triomphe%2C_Louvre%2C_Sacr%C3%A9-C%C5%93ur%2C_Montmartre%2C_2015.jpg/800px-thumbnail.jpg",
   bairro: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Street_in_Le_Marais%2C_Paris%2C_France.jpg/800px-Street_in_Le_Marais%2C_Paris%2C_France.jpg",
   notredame: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Notre-Dame_de_Paris%2C_4_October_2017.jpg/800px-Notre-Dame_de_Paris%2C_4_October_2017.jpg",
@@ -85,6 +90,18 @@ const IMAGES = {
   compras: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Galeries_Lafayette_dome%2C_Paris%2C_France.jpg/800px-Galeries_Lafayette_dome%2C_Paris%2C_France.jpg",
   hotel: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/H%C3%B4tel_des_Invalides%2C_Paris%2C_France.jpg/800px-H%C3%B4tel_des_Invalides%2C_Paris%2C_France.jpg",
 };
+
+const IMAGES = { ...IMAGES_REMOTE };
+
+const RESERVATIONS = [
+  { id: "louvre", name: "Museu do Louvre", icon: "🎨", url: "https://ticket.louvre.fr/en", dayId: 2, defaultTime: "09:30" },
+  { id: "eiffel", name: "Torre Eiffel", icon: "🗼", url: "https://ticket.toureiffel.paris/en", dayId: 2, defaultTime: "16:30" },
+  { id: "arco", name: "Arco do Triunfo", icon: "🏛️", url: "https://www.paris-arc-de-triomphe.fr/en/booking/book-a-ticket", dayId: 3, defaultTime: "09:30" },
+  { id: "disney", name: "Disneyland Paris", icon: "🏰", url: "https://www.disneylandparis.com/en-usd/tickets/", dayId: 4, defaultTime: "09:30" },
+  { id: "orsay", name: "Musée d'Orsay", icon: "🖼️", url: "https://billetterie.musee-orsay.fr/en-GB", dayId: 5, defaultTime: "10:30" },
+  { id: "notredame", name: "Notre-Dame", icon: "⛪", url: "https://www.notredamedeparis.fr/en/visit/opening-times-and-access", dayId: 1, defaultTime: "14:00" },
+  { id: "navigo", name: "Navigo semanal", icon: "🚇", url: "https://www.iledefrance-mobilites.fr/en/tickets-fares/detail/navigo-weekly-ticket", dayId: 1, defaultTime: "" },
+];
 
 function mapsUrl(place) {
   if (!place) return null;
@@ -161,7 +178,9 @@ const DAYS = [
 ];
 
 DAYS.forEach((day) => {
-  day.activities.forEach((a) => {
+  day.activities.forEach((a, idx) => {
+    a.key = `${day.id}-${idx}`;
+    a.imageFallback = IMG_FALLBACK;
     if (!a.maps && a.place) a.maps = mapsUrl(a.place);
     if (a.link && a.needsReservation === undefined) a.needsReservation = !!a.highlight;
   });
