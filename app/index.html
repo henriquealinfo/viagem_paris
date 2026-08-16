@@ -15,33 +15,28 @@
 <body>
   <header class="app-header" id="app-header">
     <div class="header-inner">
-      <button class="btn-back hidden" id="btn-back" aria-label="Voltar">← Voltar</button>
+      <button class="btn-back hidden" id="btn-back" aria-label="Voltar">←</button>
       <div class="header-text">
         <h1 id="page-title">Paris</h1>
         <p id="page-subtitle">Nossa viagem</p>
+      </div>
+      <div class="header-tools">
+        <button class="btn-tool" id="btn-font" aria-label="Aumentar letra" title="Letra grande">A+</button>
+        <button class="btn-tool" id="btn-theme" aria-label="Modo escuro" title="Modo escuro">🌙</button>
       </div>
     </div>
   </header>
 
   <main id="app-main" class="app-main"></main>
 
+  <div id="toast" class="toast hidden" role="status"></div>
+
   <nav class="bottom-nav" aria-label="Menu principal">
-    <button class="nav-btn active" data-view="home" aria-label="Início">
-      <span class="nav-icon">🏠</span>
-      <span class="nav-label">Início</span>
-    </button>
-    <button class="nav-btn" data-view="days" aria-label="Roteiro">
-      <span class="nav-icon">📅</span>
-      <span class="nav-label">Roteiro</span>
-    </button>
-    <button class="nav-btn" data-view="links" aria-label="Reservas">
-      <span class="nav-icon">🔗</span>
-      <span class="nav-label">Reservas</span>
-    </button>
-    <button class="nav-btn" data-view="tips" aria-label="Dicas">
-      <span class="nav-icon">💡</span>
-      <span class="nav-label">Dicas</span>
-    </button>
+    <button class="nav-btn active" data-view="home"><span class="nav-icon">🏠</span><span class="nav-label">Início</span></button>
+    <button class="nav-btn" data-view="today"><span class="nav-icon">📍</span><span class="nav-label">Hoje</span></button>
+    <button class="nav-btn" data-view="days"><span class="nav-icon">📅</span><span class="nav-label">Roteiro</span></button>
+    <button class="nav-btn" data-view="links"><span class="nav-icon">🔗</span><span class="nav-label">Reservas</span></button>
+    <button class="nav-btn" data-view="more"><span class="nav-icon">☰</span><span class="nav-label">Mais</span></button>
   </nav>
 
   <script src="js/data.js"></script>
