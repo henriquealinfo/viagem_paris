@@ -1,9 +1,9 @@
 @echo off
-title Paris - App de Viagem
+title Roma + Paris - App de Viagem
 cd /d "%~dp0"
 echo.
 echo  ========================================
-echo   APP PARIS - Roteiro de Viagem
+echo   ROMA + PARIS - 10 a 17/out/2026
 echo  ========================================
 echo.
 for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /c:"IPv4"') do (

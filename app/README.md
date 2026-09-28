@@ -1,16 +1,17 @@
-# Paris — App de Viagem
+# Roma + Paris — App de Viagem
 
-App mobile para acompanhar o roteiro de 5 dias em Paris. Feito para ser **fácil de usar no celular**, com letras grandes e botões amplos.
+App mobile para acompanhar o roteiro de **10 a 17 de outubro de 2026**: Roma, voo para Paris, Disneyland Park e Versalhes. Feito para ser **fácil de usar no celular**, com letras grandes e botões amplos.
 
 ## O que tem no app
 
-- **Início** — visão geral e acesso rápido a cada dia
-- **Roteiro** — 5 dias com horário, foto, local, preço (€ e R$) e link de reserva
-- **Reservas** — links oficiais (Louvre, Torre Eiffel, Disney, Navigo…)
-- **Dicas** — Louvre grátis, câmbio, Navigo e dicas práticas
-- **Datas** — toque em cada dia e preencha a data real (fica salva no celular)
+- **Início** — voos, clima das duas cidades e acesso rápido a cada dia
+- **Roteiro** — 8 dias (embarque + 11 a 17/out) com horário, foto, local, preço (€ e R$) e link oficial
+- **Reservas** — Vaticano, Coliseu, Torre Eiffel, Disney, Versalhes e os demais ingressos
+- **Frases** — italiano e francês, com áudio
+- **Dicas** — logística do guia, orçamento de referência e ETIAS
+- **Datas** — já preenchidas; toque para ajustar (fica salvo no celular)
 
-## Versão online (recomendado)
+## Versão online
 
 **https://henriquealinfo.github.io/viagem_paris/**
 
@@ -45,20 +46,15 @@ Dê dois cliques em `iniciar.bat` — ele mostra o endereço para abrir no celul
 app/
 ├── index.html      # Página principal
 ├── css/style.css   # Visual mobile
-├── js/data.js      # Roteiro, fotos e preços
+├── js/data.js      # Roteiro Roma + Paris
 ├── js/app.js       # Navegação
 ├── manifest.json   # Instalar como app
-├── sw.js           # Funciona offline (roteiro salvo)
+├── sw.js           # Funciona offline
 └── icons/          # Ícone na tela inicial
 ```
 
 ## Personalizar
 
-- **Câmbio:** edite `cambio: 6.2` em `js/data.js`
-- **Datas:** preenchidas no próprio app (salvas automaticamente)
-- **Fotos:** URLs em `js/data.js` (Wikimedia Commons)
-
-## Requisitos
-
-- Navegador moderno (Chrome, Safari, Edge)
-- Python 3 (só para servir localmente; opcional se publicar online)
+- **Câmbio:** o guia usa €1 ≈ R$ 5,90 (`cambio` em `js/data.js`)
+- **Hotel de Paris:** preencha no card de emergência da tela inicial
+- **Voo Roma → Paris e CDG → GRU:** confirme horário e grave na aba Reservas

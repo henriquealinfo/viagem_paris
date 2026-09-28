@@ -1,210 +1,414 @@
-/** Dados da viagem — Paris 5 dias */
-const APP_VERSION = "3.1.0";
+/** Dados da viagem — Roma + Paris, 10 a 17 de outubro de 2026 */
+const APP_VERSION = "4.1.3";
 
 const TRIP = {
-  title: "Viagem à Paris",
-  subtitle: "5 dias inesquecíveis",
+  title: "Roma + Paris",
+  subtitle: "10 a 17 de outubro de 2026",
   version: APP_VERSION,
-  cambio: 6.2,
-  navigoSemanal: 32.4,
+  cambio: 5.9,
+  travelers: 5,
+  transportEstimate: { min: 60, max: 100 },
   appUrl: "https://henriquealinfo.github.io/viagem_paris/",
-  weather: { lat: 48.8566, lon: 2.3522, city: "Paris" },
-  /** Preencha as datas reais da viagem (seg–sex) */
+  weather: {
+    cities: [
+      { id: "roma", name: "Roma", lat: 41.9028, lon: 12.4964 },
+      { id: "paris", name: "Paris", lat: 48.8566, lon: 2.3522 },
+    ],
+  },
+  timezone: "Europe/Rome",
   defaultDates: {
+    0: "2026-10-10",
     1: "2026-10-11",
     2: "2026-10-12",
     3: "2026-10-13",
     4: "2026-10-14",
     5: "2026-10-15",
+    6: "2026-10-16",
+    7: "2026-10-17",
   },
   emergency: {
-    hotel: "Hotel (preencher nome)",
-    hotelAddress: "Endereço do hotel — Paris",
-    hotelPhone: "+33 ...",
+    hotelRoma: "Residenze Serventi Longhi",
+    hotelRomaAddress: "2 Largo Brindisi, San Giovanni, Roma, 00182, Itália",
+    hotelRomaPhone: "+39 329 540 3799",
+    hotelRomaEmail: "domvs.avrea.roma@gmail.com",
+    hotelRomaBooking: "https://www.booking.com/Share-bvGJbc6",
+    hotelRomaStay: "11 a 13 de outubro de 2026",
+    hotelParis: "Terracotta — Le Kremlin-Bicêtre",
+    hotelParisAddress: "2 Rue Marcel Sembat, 2º andar, apto. 68, 94270 Le Kremlin-Bicêtre, França",
+    hotelParisPhone: "+33 6 51 45 48 36",
+    hotelParisEmail: "contact@naps-immo.com",
+    hotelParisBooking: "https://www.airbnb.com/l/KQEkCa8j",
+    hotelParisCheckin: "https://form.jotform.com/232836045643053?bookId=93778904&guestFirstName=Vinicius&guestName=Marcondes%20Ferraz%20de%20Carmo",
+    hotelParisExtras: "https://app.sunver.app/guest/terracotta-1",
+    hotelParisStay: "13 a 17 de outubro de 2026 · check-in 17h · check-out 11h",
+    hotelParisGuest: "Vinicius Marcondes Ferraz de Carmo",
     contactName: "Contato de emergência",
     contactPhone: "+55 11 96914-1969",
-    embassy: "Embaixada do Brasil — Paris",
-    embassyPhone: "+33 1 45 61 63 00",
+    embassyRoma: "Embaixada do Brasil — Roma",
+    embassyRomaPhone: "+39 06 68391",
+    embassyParis: "Embaixada do Brasil — Paris",
+    embassyParisPhone: "+33 1 45 61 63 00",
     emergencyEU: "112",
+    medicalIT: "118",
+    policeIT: "113",
     medicalFR: "15 (SAMU)",
     policeFR: "17 (Polícia)",
     insurance: "Seguro viagem — nº apólice",
     passportNote: "Tenha foto do passaporte no celular",
   },
   dicasGerais: [
-    "Passe Navigo semanal (€32,40) cobre metrô, Disney e aeroporto se for seg–dom.",
-    "Reserve Louvre, Torre Eiffel e Disney com antecedência pelo celular.",
-    "Leve casaco leve — Paris pode esfriar à noite, mesmo no verão.",
-    "Água da torneira é potável. Peça 'une carafe d'eau' no restaurante.",
+    "Não tentem “zerar” Roma no primeiro dia — o pouso é às 10h10 e o check-in do hotel é a partir das 13h30.",
+    "Os ingressos com horário do Coliseu são a peça-chave da tarde de 12/10. Reservem cedo no site oficial.",
+    "Para 5 pessoas, compare o custo de 5 bilhetes com um táxi/transfer: às vezes o carro sai semelhante e poupa trocas.",
+    "No voo Roma → Paris, priorizem FCO → Orly se horário e preço (com bagagem) forem bons.",
+    "Low-cost: compare o preço final com mala. Na Transavia Basic só o item pessoal pequeno vem incluído.",
+    "Outubro esfria à noite — levem uma camada extra para Roma, Paris, Disney e Versalhes.",
+    "Água da torneira é potável nas duas cidades. Peçam uma jarra no restaurante.",
+    "ETIAS: confiram o status oficial antes de embarcar.",
+    "No Terracotta, o código de check-in só chega por e-mail. Preencham o formulário no dia 13/10 e atualizem o e-mail.",
+    "Apto em Le Kremlin-Bicêtre: não fumantes, sem festa, silêncio das 22h às 8h. Instruções de acesso vêm no e-mail do dia da chegada.",
   ],
 };
 
+const FLIGHTS = [
+  { id: "gru-fco", date: "2026-10-10", time: "17h55", arriveDate: "2026-10-11", arriveTime: "10h10", from: "GRU", to: "FCO", note: "LATAM noturno · pouso em Roma no dia seguinte", mapsPlace: "Aeroporto Internacional de São Paulo GRU", city: "gru" },
+  { id: "fco-paris", date: "2026-10-13", time: "~18h00", arriveTime: "~20h10", from: "FCO", to: "ORY / CDG", note: "Preferir Orly se horário e bagagem fecharem bem", mapsPlace: "Aeroporto di Fiumicino FCO", city: "roma" },
+  { id: "cdg-gru", date: "2026-10-17", time: "a confirmar", from: "CDG", to: "GRU", note: "Chegar cedo — voo de longo curso", mapsPlace: "Aéroport Charles de Gaulle CDG", city: "paris" },
+];
+
+const BUDGET = {
+  note: "Estimativa por pessoa, sem passagens aéreas (GRU–FCO, FCO–Paris e CDG–GRU). Hospedagem já reservada também fica de fora.",
+  categories: [
+    {
+      id: "roma-tickets",
+      name: "Ingressos em Roma",
+      icon: "🇮🇹",
+      items: [
+        { name: "Panteão", min: 7, max: 7 },
+        { name: "Vaticano + Capela Sistina", min: 25, max: 25 },
+        { name: "Coliseu + Fórum + Palatino", min: 18, max: 25 },
+      ],
+    },
+    {
+      id: "paris-tickets",
+      name: "Ingressos em Paris",
+      icon: "🇫🇷",
+      items: [
+        { name: "Arco do Triunfo", min: 16, max: 16 },
+        { name: "Torre Eiffel", min: 23, max: 36 },
+        { name: "Cruzeiro no Sena", min: 18, max: 25 },
+        { name: "Disneyland Park (1 dia / 1 parque)", min: 80, max: 95 },
+        { name: "Versalhes Passport", min: 35, max: 35 },
+        { name: "Opéra Garnier (se entrar)", min: 0, max: 25 },
+      ],
+    },
+    {
+      id: "transport",
+      name: "Transporte no destino",
+      icon: "🚇",
+      items: [
+        { name: "Metrô, RER e táxi no dia a dia", min: 60, max: 100, note: "Faixa do guia, vários dias" },
+        { name: "FCO ↔ hotel em Roma", min: 25, max: 45, note: "Chegada + saída; transfer sai melhor para 5" },
+        { name: "Aeroporto ↔ Terracotta", min: 22, max: 45, note: "Orly/CDG na chegada e CDG no retorno" },
+      ],
+    },
+    {
+      id: "food",
+      name: "Alimentação",
+      icon: "🍽️",
+      items: [
+        { name: "Cafés da manhã", min: 48, max: 48, note: "6 manhãs no roteiro" },
+        { name: "Almoços", min: 90, max: 155, note: "Roma + Paris, inclusive Disney" },
+        { name: "Jantares", min: 145, max: 245, note: "Inclui o jantar especial de despedida" },
+      ],
+    },
+  ],
+};
+
+function budgetCategoryRange(cat) {
+  return cat.items.reduce((acc, item) => ({
+    min: acc.min + Number(item.min || 0),
+    max: acc.max + Number(item.max ?? item.min ?? 0),
+  }), { min: 0, max: 0 });
+}
+
+function budgetTotalRange() {
+  return BUDGET.categories.reduce((acc, cat) => {
+    const r = budgetCategoryRange(cat);
+    return { min: acc.min + r.min, max: acc.max + r.max };
+  }, { min: 0, max: 0 });
+}
+
 const CHECKLIST = [
-  { id: "passport", label: "Passaporte válido (+ foto digital)", icon: "🛂" },
-  { id: "insurance", label: "Seguro viagem contratado", icon: "🏥" },
+  { id: "passport", label: "Passaportes conferidos (+ foto digital)", icon: "🛂" },
+  { id: "insurance", label: "Seguro viagem emitido", icon: "🏥" },
+  { id: "etias", label: "ETIAS verificado no site oficial", icon: "🇪🇺" },
   { id: "esim", label: "Chip / eSIM para internet", icon: "📱" },
-  { id: "navigo", label: "Foto 3×4 para cartão Navigo", icon: "🚇" },
-  { id: "louvre", label: "Reserva Louvre confirmada", icon: "🎨" },
-  { id: "eiffel", label: "Reserva Torre Eiffel confirmada", icon: "🗼" },
-  { id: "disney", label: "Ingresso Disney confirmado", icon: "🏰" },
-  { id: "arco", label: "Reserva Arco do Triunfo (se for subir)", icon: "🏛️" },
+  { id: "vatican", label: "Vaticano + Capela Sistina reservados", icon: "🇻🇦" },
+  { id: "colosseum", label: "Coliseu + Fórum + Palatino reservados", icon: "🏟️" },
+  { id: "pantheon", label: "Panteão reservado (€7)", icon: "🏛️" },
+  { id: "eiffel", label: "Torre Eiffel reservada", icon: "🗼" },
+  { id: "disney", label: "Disneyland Park (1 dia / 1 parque) confirmado", icon: "🏰" },
+  { id: "versailles", label: "Versalhes Passport reservado", icon: "👑" },
+  { id: "flight-fco", label: "Voo FCO → Paris comprado com bagagem", icon: "✈️" },
+  { id: "hotel-roma", label: "Hotel de Roma confirmado (11–13/out)", icon: "🏨" },
+  { id: "hotel-paris", label: "Terracotta confirmado (13–17/out)", icon: "🏨" },
+  { id: "hotel-paris-code", label: "Código de check-in do Terracotta no e-mail", icon: "🔑" },
+  { id: "offline", label: "Passaportes, reservas e seguro salvos offline", icon: "📂" },
   { id: "adapter", label: "Adaptador de tomada europeu", icon: "🔌" },
   { id: "charger", label: "Carregador portátil (power bank)", icon: "🔋" },
   { id: "comfort", label: "Sapatos confortáveis para caminhar", icon: "👟" },
-  { id: "cards", label: "Cartão sem taxa internacional / euros", icon: "💳" },
+  { id: "cards", label: "Cartões habilitados para o exterior / euros", icon: "💳" },
+];
+
+const ITALIAN_PHRASES = [
+  { pt: "Por favor", lang: "Per favore", note: "Educado em qualquer pedido" },
+  { pt: "Obrigado(a)", lang: "Grazie mille", note: "" },
+  { pt: "Não falo italiano", lang: "Non parlo italiano", note: "Muito útil!" },
+  { pt: "Fala inglês?", lang: "Parla inglese?", note: "" },
+  { pt: "Onde fica o banheiro?", lang: "Dov'è il bagno?", note: "" },
+  { pt: "A conta, por favor", lang: "Il conto, per favore", note: "No restaurante" },
+  { pt: "Água da torneira", lang: "Una caraffa d'acqua, per favore", note: "Grátis" },
+  { pt: "Quanto custa?", lang: "Quanto costa?", note: "" },
+  { pt: "Preciso de ajuda", lang: "Ho bisogno di aiuto", note: "Emergência" },
+  { pt: "Estou perdido(a)", lang: "Mi sono perso/a", note: "" },
+  { pt: "Um café, por favor", lang: "Un caffè, per favore", note: "" },
+  { pt: "Um táxi, por favor", lang: "Un taxi, per favore", note: "Grupo de 5" },
 ];
 
 const FRENCH_PHRASES = [
-  { pt: "Por favor", fr: "S'il vous plaît", note: "Educado em qualquer pedido" },
-  { pt: "Obrigado(a)", fr: "Merci beaucoup", note: "" },
-  { pt: "Não falo francês", fr: "Je ne parle pas français", note: "Muito útil!" },
-  { pt: "Fala inglês?", fr: "Parlez-vous anglais?", note: "" },
-  { pt: "Onde fica o banheiro?", fr: "Où sont les toilettes?", note: "" },
-  { pt: "A conta, por favor", fr: "L'addition, s'il vous plaît", note: "No restaurante" },
-  { pt: "Água da torneira", fr: "Une carafe d'eau, s'il vous plaît", note: "Grátis" },
-  { pt: "Quanto custa?", fr: "C'est combien?", note: "" },
-  { pt: "Preciso de ajuda", fr: "J'ai besoin d'aide", note: "Emergência" },
-  { pt: "Estou perdido(a)", fr: "Je suis perdu(e)", note: "" },
-  { pt: "Um café, por favor", fr: "Un café, s'il vous plaît", note: "" },
-  { pt: "O metrô, por favor", fr: "Le métro, s'il vous plaît", note: "Pedir direções" },
+  { pt: "Por favor", lang: "S'il vous plaît", note: "Educado em qualquer pedido" },
+  { pt: "Obrigado(a)", lang: "Merci beaucoup", note: "" },
+  { pt: "Não falo francês", lang: "Je ne parle pas français", note: "Muito útil!" },
+  { pt: "Fala inglês?", lang: "Parlez-vous anglais?", note: "" },
+  { pt: "Onde fica o banheiro?", lang: "Où sont les toilettes?", note: "" },
+  { pt: "A conta, por favor", lang: "L'addition, s'il vous plaît", note: "No restaurante" },
+  { pt: "Água da torneira", lang: "Une carafe d'eau, s'il vous plaît", note: "Grátis" },
+  { pt: "Quanto custa?", lang: "C'est combien?", note: "" },
+  { pt: "Preciso de ajuda", lang: "J'ai besoin d'aide", note: "Emergência" },
+  { pt: "Estou perdido(a)", lang: "Je suis perdu(e)", note: "" },
+  { pt: "Um café, por favor", lang: "Un café, s'il vous plaît", note: "" },
+  { pt: "O metrô, por favor", lang: "Le métro, s'il vous plaît", note: "Pedir direções" },
 ];
 
-const IMG_FALLBACK = "images/placeholder.svg";
+const PHRASE_PACKS = [
+  { id: "it", label: "Italiano", flag: "🇮🇹", voice: "it-IT", items: ITALIAN_PHRASES },
+  { id: "fr", label: "Francês", flag: "🇫🇷", voice: "fr-FR", items: FRENCH_PHRASES },
+];
+
+const IMG_FALLBACK = "images/placeholder.svg?v=404";
 
 const IMAGES_REMOTE = {
   aeroporto: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Paris_-_Aerial_View%2C_La_Defense%2C_Eiffel_Tower%2C_Trocad%C3%A9ro%2C_Tour_Montparnasse%2C_Notre-Dame%2C_Les_Invalides%2C_Arc_de_Triomphe%2C_Louvre%2C_Sacr%C3%A9-C%C5%93ur%2C_Montmartre%2C_2015.jpg/800px-thumbnail.jpg",
-  bairro: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Street_in_Le_Marais%2C_Paris%2C_France.jpg/800px-Street_in_Le_Marais%2C_Paris%2C_France.jpg",
-  notredame: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Notre-Dame_de_Paris%2C_4_October_2017.jpg/800px-Notre-Dame_de_Paris%2C_4_October_2017.jpg",
-  seine: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Panorama_Pont_Neuf_%28Paris%29.jpg/800px-Panorama_Pont_Neuf_%28Paris%29.jpg",
-  jantar: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Paris_cafe_terrace.jpg/800px-Paris_cafe_terrace.jpg",
+  hotel: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/H%C3%B4tel_des_Invalides%2C_Paris%2C_France.jpg/800px-H%C3%B4tel_des_Invalides%2C_Paris%2C_France.jpg",
   cafe: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/57/Croissant-Petit-Dejeuner.jpg/800px-Croissant-Petit-Dejeuner.jpg",
+  jantar: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Paris_cafe_terrace.jpg/800px-Paris_cafe_terrace.jpg",
+  panteao: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c0/Pantheon_Rome_04_2016_6402.jpg/800px-Pantheon_Rome_04_2016_6402.jpg",
+  navona: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Piazza_Navona_Pano.jpg/800px-Piazza_Navona_Pano.jpg",
+  campo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Campo_de%27_Fiori.jpg/800px-Campo_de%27_Fiori.jpg",
+  trevi: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Fontana_di_Trevi_sotto_il_sole.jpg/800px-Fontana_di_Trevi_sotto_il_sole.jpg",
+  spagna: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Piazza_di_Spagna_and_the_Spanish_Steps%2C_Rome.jpg/800px-Piazza_di_Spagna_and_the_Spanish_Steps%2C_Rome.jpg",
+  trastevere: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Trastevere_-_Santa_Maria.jpg/800px-Trastevere_-_Santa_Maria.jpg",
+  vaticano: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Vatican_Museums_Spiral_Staircase_2012.jpg/800px-Vatican_Museums_Spiral_Staircase_2012.jpg",
+  saopedro: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/St_Peter%27s_Square%2C_Vatican_City_-_April_2007.jpg/800px-St_Peter%27s_Square%2C_Vatican_City_-_April_2007.jpg",
+  coliseu: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Colosseo_2020.jpg/800px-Colosseo_2020.jpg",
+  forum: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Forum_Romanum_Rom.jpg/800px-Forum_Romanum_Rom.jpg",
+  palatino: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Palatine_Hill_Rome.jpg/800px-Palatine_Hill_Rome.jpg",
+  campidoglio: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Piazza_del_Campidoglio.jpg/800px-Piazza_del_Campidoglio.jpg",
+  vittoriano: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Vittoriano_Roma.jpg/800px-Vittoriano_Roma.jpg",
+  gueto: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Portico_d%27Ottavia.jpg/800px-Portico_d%27Ottavia.jpg",
+  notredame: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Notre-Dame_de_Paris%2C_4_October_2017.jpg/800px-Notre-Dame_de_Paris%2C_4_October_2017.jpg",
   louvre: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Louvre_Museum_Wikimedia_Commons.jpg/800px-Louvre_Museum_Wikimedia_Commons.jpg",
   tuileries: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/Tuileries_Garden%2C_Paris%2C_France_-_panoramio.jpg/800px-Tuileries_Garden%2C_Paris%2C_France_-_panoramio.jpg",
-  torre: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Tour_Eiffel_Wikimedia_Commons_%28cropped%29.jpg/800px-Tour_Eiffel_Wikimedia_Commons_%28cropped%29.jpg",
-  trocadero: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Tour_Eiffel%2C_Paris%2C_from_Trocadero%2C_June_2010.jpg/800px-Tour_Eiffel%2C_Paris%2C_from_Trocadero%2C_June_2010.jpg",
   arco: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Arc_de_Triomphe%2C_Paris_7_June_2014%2C_perspective-2.jpg/800px-Arc_de_Triomphe%2C_Paris_7_June_2014%2C_perspective-2.jpg",
   champs: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Champs-Elysees_Daytime_%28cropped%29.jpg/800px-Champs-Elysees_Daytime_%28cropped%29.jpg",
-  montmartre: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Sacre_Coeur_paris.jpg/800px-Sacre_Coeur_paris.jpg",
+  trocadero: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Tour_Eiffel%2C_Paris%2C_from_Trocadero%2C_June_2010.jpg/800px-Tour_Eiffel%2C_Paris%2C_from_Trocadero%2C_June_2010.jpg",
+  torre: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Tour_Eiffel_Wikimedia_Commons_%28cropped%29.jpg/800px-Tour_Eiffel_Wikimedia_Commons_%28cropped%29.jpg",
+  seine: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Panorama_Pont_Neuf_%28Paris%29.jpg/800px-Panorama_Pont_Neuf_%28Paris%29.jpg",
   disney: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Sleeping_Beauty_Castle_%28cropped%29.jpg/800px-Sleeping_Beauty_Castle_%28cropped%29.jpg",
-  orsay: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Le_Mus%C3%A9e_d%27Orsay%2C_Paris_May_2010.jpg/800px-Le_Mus%C3%A9e_d%27Orsay%2C_Paris_May_2010.jpg",
+  versailles: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Chateau_de_Versailles_Galerie_des_Glaces.jpg/800px-Chateau_de_Versailles_Galerie_des_Glaces.jpg",
+  montmartre: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Sacre_Coeur_paris.jpg/800px-Sacre_Coeur_paris.jpg",
+  opera: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Paris_Opera_full_frontal_architecture%2C_May_2009.jpg/800px-Paris_Opera_full_frontal_architecture%2C_May_2009.jpg",
   compras: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Galeries_Lafayette_dome%2C_Paris%2C_France.jpg/800px-Galeries_Lafayette_dome%2C_Paris%2C_France.jpg",
-  hotel: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/H%C3%B4tel_des_Invalides%2C_Paris%2C_France.jpg/800px-H%C3%B4tel_des_Invalides%2C_Paris%2C_France.jpg",
 };
 
+const IMG_VER = "404";
 const IMAGES = {};
 Object.keys(IMAGES_REMOTE).forEach((k) => {
-  IMAGES[k] = `images/${k}.svg`;
+  IMAGES[k] = `images/${k}.svg?v=${IMG_VER}`;
 });
-IMAGES.versailles = "images/versailles.svg";
 
-function getAllDays(includeOptional) {
-  return includeOptional ? [...DAYS, OPTIONAL_DAY] : [...DAYS];
+function mapsUrl(place, city) {
+  if (!place) return null;
+  const suffix = { roma: "Rome, Italy", paris: "Paris, France", kremlin: "Le Kremlin-Bicêtre, France", gru: "São Paulo, Brazil" }[city] || "";
+  const q = suffix ? `${place}, ${suffix}` : place;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 }
 
-function findDay(id, includeOptional) {
-  return getAllDays(includeOptional).find((d) => d.id === Number(id));
+function dayLabel(day) {
+  if (!day) return "";
+  return day.kind === "embarque" ? "Embarque" : `Dia ${day.id}`;
 }
 
-const OPTIONAL_DAY = {
-  id: 6, emoji: "👑", optional: true, weekday: "Sábado (opcional)", title: "Versailles",
-  color: "#5D4037", accent: "#EFEBE9",
-  summary: "Dia opcional — Palácio de Versailles (~1h de trem de Paris).",
-  activities: [
-    { time: "08h00", title: "Saída de Paris", place: "Gare Saint-Lazare", desc: "Trem RER C ou SNCF até Versailles.", transport: "RER C", priceEur: "0 – 8", image: IMAGES.versailles, link: { label: "Bilhetes trem", url: "https://www.sncf-connect.com/" } },
-    { time: "09h30 – 13h", title: "Palácio de Versailles", place: "Château de Versailles", desc: "Salão dos Espelhos, apartamentos reais e jardins.", transport: "A pé", priceEur: "21 – 32", priceNote: "Palácio + jardins ~€32", image: IMAGES.versailles, highlight: true, needsReservation: true, link: { label: "Reservar Versailles", url: "https://www.chateauversailles.fr/visit/tickets" } },
-    { time: "13h – 14h", title: "Almoço", place: "Versailles", priceEur: "15 – 25", image: IMAGES.jantar },
-    { time: "14h – 17h", title: "Jardins e Grand Trianon", place: "Versailles", desc: "Passeio pelos jardins (grátis nov–mar, exc. Musical Fountains).", transport: "A pé", priceEur: "0 – 12", image: IMAGES.versailles },
-    { time: "18h", title: "Retorno a Paris", place: "Paris", transport: "RER C", priceEur: "0 – 8", image: IMAGES.aeroporto },
-  ],
-};
+function cityLabel(city) {
+  if (city === "roma") return "Roma";
+  if (city === "paris") return "Paris";
+  if (city === "kremlin") return "Le Kremlin-Bicêtre";
+  if (city === "gru") return "São Paulo";
+  return "";
+}
 
-OPTIONAL_DAY.activities.forEach((a, idx) => {
-  a.key = `6-${idx}`;
-  a.imageFallback = IMG_FALLBACK;
-  if (!a.maps && a.place) a.maps = mapsUrl(a.place);
-});
+function getAllDays() {
+  return DAYS;
+}
+
+function findDay(id) {
+  return DAYS.find((d) => d.id === Number(id));
+}
 
 const RESERVATIONS = [
-  { id: "louvre", name: "Museu do Louvre", icon: "🎨", url: "https://ticket.louvre.fr/en", dayId: 2, defaultTime: "09:30" },
-  { id: "eiffel", name: "Torre Eiffel", icon: "🗼", url: "https://ticket.toureiffel.paris/en", dayId: 2, defaultTime: "16:30" },
-  { id: "arco", name: "Arco do Triunfo", icon: "🏛️", url: "https://www.paris-arc-de-triomphe.fr/en/booking/book-a-ticket", dayId: 3, defaultTime: "09:30" },
-  { id: "disney", name: "Disneyland Paris", icon: "🏰", url: "https://www.disneylandparis.com/en-usd/tickets/", dayId: 4, defaultTime: "09:30" },
-  { id: "orsay", name: "Musée d'Orsay", icon: "🖼️", url: "https://billetterie.musee-orsay.fr/en-GB", dayId: 5, defaultTime: "10:30" },
-  { id: "notredame", name: "Notre-Dame", icon: "⛪", url: "https://www.notredamedeparis.fr/en/visit/opening-times-and-access", dayId: 1, defaultTime: "14:00" },
-  { id: "navigo", name: "Navigo semanal", icon: "🚇", url: "https://www.iledefrance-mobilites.fr/en/tickets-fares/detail/navigo-weekly-ticket", dayId: 1, defaultTime: "" },
-  { id: "versailles", name: "Palácio de Versailles", icon: "👑", url: "https://www.chateauversailles.fr/visit/tickets", dayId: 6, defaultTime: "09:30" },
+  { id: "hotel-roma", name: "Hotel Roma — 11 a 13/out", icon: "🏨", url: "https://www.booking.com/Share-bvGJbc6", dayId: 1, defaultTime: "13:30" },
+  { id: "pantheon", name: "Panteão", icon: "🏛️", url: "https://portale.museiitaliani.it/b2c/n/info/pantheon", dayId: 1, defaultTime: "15:15" },
+  { id: "vatican", name: "Museus Vaticanos + Sistina", icon: "🇻🇦", url: "https://tickets.museivaticani.va/home", dayId: 2, defaultTime: "08:00" },
+  { id: "colosseum", name: "Coliseu + Fórum + Palatino", icon: "🏟️", url: "https://colosseo.it/en/orario-e-tariffe/", dayId: 2, defaultTime: "14:15" },
+  { id: "flight-fco", name: "Voo FCO → Paris", icon: "✈️", url: "https://www.transavia.com/", dayId: 3, defaultTime: "18:00" },
+  { id: "hotel-paris", name: "Terracotta Paris — 13 a 17/out", icon: "🏨", url: "https://www.airbnb.com/l/KQEkCa8j", dayId: 3, defaultTime: "17:00" },
+  { id: "hotel-paris-code", name: "Código check-in Terracotta", icon: "🔑", url: "https://form.jotform.com/232836045643053?bookId=93778904&guestFirstName=Vinicius&guestName=Marcondes%20Ferraz%20de%20Carmo", dayId: 3, defaultTime: "17:00" },
+  { id: "notredame", name: "Notre-Dame (reserva grátis)", icon: "⛪", url: "https://resa.notredamedeparis.fr/en/reservationindividuelle/tickets", dayId: 4, defaultTime: "08:30" },
+  { id: "arco", name: "Arco do Triunfo", icon: "🏛️", url: "https://www.paris-arc-de-triomphe.fr/en/booking/book-a-ticket", dayId: 4, defaultTime: "14:00" },
+  { id: "eiffel", name: "Torre Eiffel", icon: "🗼", url: "https://ticket.toureiffel.paris/en", dayId: 4, defaultTime: "18:00" },
+  { id: "seine", name: "Cruzeiro pelo Sena", icon: "🚢", url: "https://ticket.parisjetaime.com/en/paris-seine-cruises-s113", dayId: 4, defaultTime: "20:30" },
+  { id: "disney", name: "Disneyland Park", icon: "🏰", url: "https://www.disneylandparis.com/en-usd/tickets/", dayId: 5, defaultTime: "09:30" },
+  { id: "versailles", name: "Palácio de Versailles", icon: "👑", url: "https://en.chateauversailles.fr/plan-your-visit/tickets-and-rates", dayId: 6, defaultTime: "08:45" },
+  { id: "opera", name: "Opéra Garnier", icon: "🎭", url: "https://www.operadeparis.fr/en/visits/palais-garnier", dayId: 6, defaultTime: "18:00" },
 ];
-
-function mapsUrl(place) {
-  if (!place) return null;
-  const q = encodeURIComponent(`${place}, Paris, France`);
-  return `https://www.google.com/maps/search/?api=1&query=${q}`;
-}
 
 const DAYS = [
   {
-    id: 1, emoji: "✈️", weekday: "Segunda-feira", title: "Chegada e Paris Clássico",
-    color: "#1F4E79", accent: "#D6E4F0",
-    summary: "Dia leve para descansar do voo e conhecer o centro histórico.",
+    id: 0, kind: "embarque", emoji: "🛫", weekday: "Sábado", title: "Embarque GRU → Roma",
+    city: "gru", color: "#0D47A1", accent: "#E3F2FD", pace: "Leve",
+    summary: "Voo noturno LATAM. Saída 17h55 em Guarulhos; pouso em Fiumicino às 10h10 de domingo.",
     activities: [
-      { time: "Manhã", title: "Chegada e hotel", place: "Aeroporto Charles de Gaulle", desc: "Chegada em CDG ou Orly. Check-in ou deixe as malas no hotel.", transport: "RER B ou Navigo", priceEur: "0 – 14", priceNote: "Navigo semanal inclui se já estiver ativo", image: IMAGES.aeroporto, link: { label: "Navigo semanal", url: "https://www.iledefrance-mobilites.fr/en/tickets-fares/detail/navigo-weekly-ticket" } },
-      { time: "11h – 13h", title: "Passeio pelo bairro", place: "Le Marais, Paris", desc: "Caminhada tranquila pelo bairro do hotel e almoço leve.", transport: "A pé / metrô", priceEur: "15", image: IMAGES.bairro },
-      { time: "14h – 16h", title: "Notre-Dame e Île de la Cité", place: "Notre-Dame de Paris", desc: "Catedral Notre-Dame (exterior) e Sainte-Chapelle opcional.", transport: "Metrô linha 4", priceEur: "0 – 16", priceNote: "Sainte-Chapelle ~€16", image: IMAGES.notredame, needsReservation: true, link: { label: "Reservar Notre-Dame", url: "https://www.notredamedeparis.fr/en/visit/opening-times-and-access" } },
-      { time: "16h30 – 18h", title: "Passeio pelo Sena", place: "Musée du Louvre, Paris", desc: "Caminhada à beira do rio Sena até a praça do Louvre.", transport: "A pé", priceEur: "0", image: IMAGES.seine, link: { label: "Info Louvre", url: "https://www.louvre.fr/en/visit/hours-admission" } },
-      { time: "19h – 21h", title: "Jantar e descanso", place: "Bistro Paris", desc: "Primeira noite — jantar tranquilo e descanso para o jet lag.", transport: "Metrô", priceEur: "20 – 35", image: IMAGES.jantar },
+      { time: "14h00", title: "Sair de casa / hotel", place: "São Paulo", desc: "Chegar com folga — voo internacional e grupo de 5.", transport: "Transfer / táxi", priceEur: "0", image: IMAGES.aeroporto, city: "gru" },
+      { time: "17h55", title: "Voo LATAM GRU → FCO", place: "Aeroporto Internacional de Guarulhos", desc: "Voo noturno. Pouso em Roma no dia seguinte, 11/10 às 10h10.", transport: "Avião", priceEur: "incl.", image: IMAGES.aeroporto, highlight: true, city: "gru" },
+      { time: "Noite", title: "Voo noturno", place: "A bordo", desc: "Tentem dormir. O primeiro dia em Roma começa cedo e a pé.", transport: "—", priceEur: "0", image: IMAGES.hotel, city: "gru" },
     ],
   },
   {
-    id: 2, emoji: "🎨", weekday: "Terça-feira", title: "Louvre e Torre Eiffel",
-    color: "#2E7D32", accent: "#E2EFDA",
-    summary: "O dia mais icônico — museu de manhã, Torre ao entardecer.",
+    id: 1, emoji: "🇮🇹", weekday: "Domingo", title: "Chegada e primeira noite",
+    city: "roma", color: "#B71C1C", accent: "#FFEBEE", pace: "Médio",
+    summary: "Pouso às 10h10 em FCO. Patrimônio fácil, caminhada pelo centro e jantar em Trastevere — sem ingresso apertado.",
     activities: [
-      { time: "08h30", title: "Café da manhã", place: "Boulangerie Paris", desc: "Croissant e café numa padaria parisiense.", transport: "A pé", priceEur: "8", image: IMAGES.cafe },
-      { time: "09h30 – 13h", title: "Museu do Louvre", place: "Musée du Louvre", desc: "Mona Lisa, Vênus de Milo e ala Denon. Reserva obrigatória!", transport: "Metrô 1 / 7", priceEur: "22", priceNote: "Grátis 1ª sexta 18h–21h45 (exc. jul/ago)", image: IMAGES.louvre, highlight: true, needsReservation: true, link: { label: "Reservar Louvre", url: "https://ticket.louvre.fr/en" } },
-      { time: "13h – 14h", title: "Almoço", place: "Carrousel du Louvre", desc: "Almoço no shopping subterrâneo ou nos jardins.", transport: "A pé", priceEur: "15", image: IMAGES.tuileries },
-      { time: "14h30 – 16h", title: "Jardim das Tuileries", place: "Jardin des Tuileries", desc: "Passeio pelos jardins até Place de la Concorde.", transport: "A pé", priceEur: "0", image: IMAGES.tuileries },
-      { time: "16h30 – 18h30", title: "Torre Eiffel", place: "Tour Eiffel", desc: "Subir ao topo da Torre Eiffel — reserva online essencial.", transport: "Metrô 6 / RER C", priceEur: "28 – 37", priceNote: "Topo ~€37 | Escadas+elevador ~€28", image: IMAGES.torre, highlight: true, needsReservation: true, link: { label: "Reservar Torre", url: "https://ticket.toureiffel.paris/en" } },
-      { time: "19h – 21h", title: "Pôr do sol no Trocadéro", place: "Trocadéro, Paris", desc: "Vista clássica da Torre iluminada + jantar.", transport: "Metrô 6", priceEur: "25", image: IMAGES.trocadero },
+      { time: "10h10", title: "Pouso em FCO", place: "Aeroporto di Fiumicino", desc: "Imigração + bagagem. Planejem cerca de 2h para sair com calma.", transport: "A pé no aeroporto", priceEur: "0", image: IMAGES.aeroporto },
+      { time: "12h30 – 13h30", title: "FCO → hotel", place: "2 Largo Brindisi, San Giovanni, Roma", desc: "Residenze Serventi Longhi. Para 5 + malas, transfer privado é mais cômodo. Alternativa: Leonardo Express + táxi.", transport: "Transfer / Leonardo Express", priceEur: "15 – 25", priceNote: "Por pessoa no expresso; transfer sai melhor no grupo", image: IMAGES.hotel, link: { label: "Reserva Booking", url: "https://www.booking.com/Share-bvGJbc6" } },
+      { time: "13h30", title: "Check-in / deixar malas", place: "2 Largo Brindisi, San Giovanni, Roma, 00182", desc: "Estadia 11 a 13/out. Check-in a partir das 13h30. Metrô San Giovanni fica ao lado.", transport: "—", priceEur: "0", image: IMAGES.hotel, link: { label: "Abrir reserva", url: "https://www.booking.com/Share-bvGJbc6" } },
+      { time: "14h00 – 15h00", title: "Almoço", place: "San Giovanni / centro", desc: "Restaurante próximo ao hotel ou já no centro histórico.", transport: "Metrô / a pé", priceEur: "15 – 25", image: IMAGES.jantar },
+      { time: "15h15 – 16h00", title: "Panteão", place: "Pantheon, Roma", desc: "Primeira atração curta e fácil de entrar. Ingresso oficial €7.", transport: "A pé", priceEur: "7", highlight: true, needsReservation: true, image: IMAGES.panteao, link: { label: "Reservar Panteão", url: "https://portale.museiitaliani.it/b2c/n/info/pantheon" } },
+      { time: "16h05 – 16h40", title: "Piazza Navona", place: "Piazza Navona", desc: "Caminhada curta a partir do Panteão.", transport: "A pé", priceEur: "0", image: IMAGES.navona },
+      { time: "16h40 – 17h10", title: "Campo de' Fiori", place: "Campo de' Fiori", desc: "Passeio pelo entorno e mercado, se estiver ativo no domingo.", transport: "A pé", priceEur: "0", image: IMAGES.campo },
+      { time: "17h20 – 18h00", title: "Fontana di Trevi", place: "Fontana di Trevi", desc: "Caminhada pelo centro histórico.", transport: "A pé", priceEur: "0", image: IMAGES.trevi, highlight: true },
+      { time: "18h10 – 18h45", title: "Piazza di Spagna", place: "Piazza di Spagna", desc: "Escadaria Espanhola e fotos.", transport: "A pé", priceEur: "0", image: IMAGES.spagna },
+      { time: "19h00 – 20h00", title: "Hotel / descanso", place: "2 Largo Brindisi, San Giovanni, Roma", desc: "Pausa antes do jantar — vocês chegaram de voo intercontinental.", transport: "Metrô / táxi", priceEur: "0", image: IMAGES.hotel },
+      { time: "20h30 – 22h30", title: "Trastevere", place: "Trastevere, Roma", desc: "Aperitivo + jantar romano. Táxi ou ônibus no retorno.", transport: "Táxi / ônibus", priceEur: "25 – 40", image: IMAGES.trastevere, highlight: true },
     ],
   },
   {
-    id: 3, emoji: "🏛️", weekday: "Quarta-feira", title: "Arco e Montmartre",
-    color: "#E65100", accent: "#FCE4D6",
-    summary: "Arco do Triunfo de manhã, Montmartre à tarde.",
+    id: 2, emoji: "🇻🇦", weekday: "Segunda-feira", title: "Vaticano + Coliseu",
+    city: "roma", color: "#4A148C", accent: "#F3E5F5", pace: "Intenso",
+    summary: "O dia mais intenso de Roma: Vaticano cedo, Coliseu + Fórum + Palatino à tarde e jantar em Monti.",
     activities: [
-      { time: "09h", title: "Café da manhã", place: "Hotel", transport: "—", priceEur: "8", image: IMAGES.cafe },
-      { time: "09h30 – 11h", title: "Arco do Triunfo", place: "Arc de Triomphe", desc: "Subir ao terraço — vista das 12 avenidas de Paris.", transport: "Metrô 1 / 2 / 6", priceEur: "16 – 22", priceNote: "Quarta abr–set: €16", image: IMAGES.arco, highlight: true, needsReservation: true, link: { label: "Reservar Arco", url: "https://www.paris-arc-de-triomphe.fr/en/booking/book-a-ticket" } },
-      { time: "11h – 13h", title: "Champs-Élysées", place: "Champs-Élysées, Paris", desc: "Caminhada pela avenida mais famosa.", transport: "A pé", priceEur: "0", image: IMAGES.champs },
-      { time: "13h – 14h", title: "Almoço — menu do dia", place: "Bistro Paris", desc: "Formule: prato + sobremesa, geralmente €14–18.", transport: "Metrô", priceEur: "15", image: IMAGES.jantar },
-      { time: "14h30 – 16h", title: "Galerias Lafayette", place: "Galeries Lafayette Haussmann", desc: "Opcional — terraço com vista grátis da cúpula.", transport: "Metrô 7 / 9", priceEur: "0", image: IMAGES.compras, link: { label: "Galerias Lafayette", url: "https://www.galerieslafayette.com/en/" } },
-      { time: "16h30 – 19h", title: "Montmartre", place: "Sacré-Cœur, Montmartre", desc: "Basílica, Place du Tertre e Moulin Rouge (por fora).", transport: "Metrô 2 / 12", priceEur: "0", image: IMAGES.montmartre, highlight: true },
-      { time: "19h30", title: "Jantar em Montmartre", place: "Montmartre, Paris", transport: "Metrô", priceEur: "25", image: IMAGES.jantar },
+      { time: "06h45", title: "Acordar", place: "Hotel", desc: "Café rápido no hotel. O grupo precisa sair cedo.", transport: "—", priceEur: "8", image: IMAGES.cafe },
+      { time: "07h30", title: "Hotel → Vaticano", place: "Città del Vaticano", desc: "Táxi ou metrô. Sair cedo evita fila na entrada.", transport: "Táxi / metrô", priceEur: "2 – 15", image: IMAGES.vaticano },
+      { time: "08h00 – 11h00", title: "Museus Vaticanos + Capela Sistina", place: "Musei Vaticani", desc: "Priorizem Galeria dos Mapas, Salas de Rafael e Capela Sistina. €20 + €5 reserva online.", transport: "A pé", priceEur: "25", priceNote: "€25 online oficial", image: IMAGES.vaticano, highlight: true, needsReservation: true, link: { label: "Reservar Vaticano", url: "https://tickets.museivaticani.va/home" } },
+      { time: "11h00 – 12h15", title: "Praça + Basílica de São Pedro", place: "Piazza San Pietro", desc: "Entrada da Basílica é gratuita; reserva/audioguia é opcional.", transport: "A pé", priceEur: "0", image: IMAGES.saopedro, link: { label: "Basílica oficial", url: "https://www.basilicasanpietro.va/en.html" } },
+      { time: "12h30 – 13h30", title: "Almoço", place: "Próximo ao Vaticano", desc: "Almoço rápido antes de cruzar a cidade.", transport: "A pé", priceEur: "15 – 25", image: IMAGES.jantar },
+      { time: "13h30 – 14h15", title: "Vaticano → Coliseu", place: "Colosseo", desc: "Táxi recomendado para o grupo de 5.", transport: "Táxi", priceEur: "3 – 8", image: IMAGES.coliseu },
+      { time: "14h15 – 15h30", title: "Coliseu", place: "Colosseo", desc: "Ingresso com horário marcado — peça-chave da tarde.", transport: "A pé", priceEur: "18 – 25", priceNote: "Bilhete combinado Coliseu + Fórum + Palatino", image: IMAGES.coliseu, highlight: true, needsReservation: true, link: { label: "Reservar Coliseu", url: "https://colosseo.it/en/orario-e-tariffe/" } },
+      { time: "15h30 – 17h00", title: "Fórum Romano", place: "Foro Romano", desc: "Visita a pé pelo complexo. Incluído no bilhete combinado.", transport: "A pé", priceEur: "incl.", image: IMAGES.forum },
+      { time: "17h00 – 18h00", title: "Palatino", place: "Palatino", desc: "Fazer se o grupo ainda estiver bem disposto. Incluído no mesmo bilhete.", transport: "A pé", priceEur: "incl.", image: IMAGES.palatino },
+      { time: "18h10 – 19h00", title: "Campidoglio", place: "Piazza del Campidoglio", desc: "Mirante sobre o Fórum — ótimo fim de tarde.", transport: "A pé", priceEur: "0", image: IMAGES.campidoglio },
+      { time: "20h30", title: "Jantar em Monti", place: "Monti, Roma", desc: "Bairro próximo ao Coliseu, bom para encerrar o dia intenso.", transport: "A pé / táxi", priceEur: "25 – 40", image: IMAGES.jantar },
     ],
   },
   {
-    id: 4, emoji: "🏰", weekday: "Quinta-feira", title: "Disneyland Paris",
-    color: "#6A1B9A", accent: "#E4DFEC",
-    summary: "Dia inteiro na Disney — saia cedo!",
+    id: 3, emoji: "✈️", weekday: "Terça-feira", title: "Roma de manhã → Paris",
+    city: "roma", color: "#00695C", accent: "#E0F2F1", pace: "Médio",
+    summary: "Último circuito curto em Roma, voo por volta das 18h e chegada a Paris no começo da noite. Quatro noites na mesma hospedagem parisiense.",
     activities: [
-      { time: "07h30", title: "Café rápido", place: "Hotel", desc: "Pequeno-almoço + lanche para levar ao parque.", priceEur: "8", image: IMAGES.cafe },
-      { time: "08h00", title: "Trem para Disney", place: "Marne-la-Vallée Chessy", desc: "Viagem de ~45 min até a estação Disney.", transport: "RER A (Navigo)", priceEur: "0", priceNote: "Incluso no Navigo semanal", image: IMAGES.disney, link: { label: "Mapa RER A", url: "https://www.ratp.fr/en/getting-around/maps/rer-a" } },
-      { time: "09h30 – 13h", title: "Disneyland Park", place: "Disneyland Paris", desc: "Manhã: Big Thunder, Phantom Manor, Pirates do Caribe.", transport: "A pé", priceEur: "75 – 110", priceNote: "Ingresso 1 dia, 1 parque", image: IMAGES.disney, highlight: true, needsReservation: true, link: { label: "Comprar ingresso", url: "https://www.disneylandparis.com/en-usd/tickets/" } },
-      { time: "13h – 14h", title: "Almoço no parque", place: "Disneyland Paris", priceEur: "15 – 25", image: IMAGES.disney, link: { label: "Horários parque", url: "https://www.disneylandparis.com/en-usd/calendar/" } },
-      { time: "14h – 17h", title: "Walt Disney Studios", place: "Walt Disney Studios Park", desc: "Se tiver Park Hopper, ou continuar no Parque 1.", priceEur: "incl.", image: IMAGES.disney },
-      { time: "17h – 20h", title: "Desfile e jantar", place: "Disneyland Paris", desc: "Show da tarde/noite + jantar no parque.", priceEur: "20 – 30", image: IMAGES.disney },
-      { time: "21h", title: "Retorno a Paris", place: "Paris", transport: "RER A", priceEur: "0", image: IMAGES.aeroporto },
+      { time: "07h30", title: "Café e check-out", place: "2 Largo Brindisi, San Giovanni, Roma", desc: "Última manhã no hotel — estadia até 13/10. Malas prontas. Check-out no horário informado.", transport: "—", priceEur: "8", image: IMAGES.cafe, city: "roma" },
+      { time: "08h30 – 09h15", title: "Piazza Venezia + Vittoriano", place: "Altare della Patria", desc: "Passeio e, se possível, terraço panorâmico.", transport: "Metrô / a pé", priceEur: "0 – 18", priceNote: "Terraço pago / variável", image: IMAGES.vittoriano, city: "roma" },
+      { time: "09h20 – 10h00", title: "Campidoglio", place: "Piazza del Campidoglio", desc: "Vista para o Fórum; caminhada curta.", transport: "A pé", priceEur: "0", image: IMAGES.campidoglio, city: "roma" },
+      { time: "10h05 – 10h35", title: "Teatro di Marcello", place: "Teatro di Marcello", desc: "Ver por fora — não entrar.", transport: "A pé", priceEur: "0", image: IMAGES.gueto, city: "roma" },
+      { time: "10h40 – 11h30", title: "Gueto Judaico", place: "Portico d'Ottavia", desc: "Pórtico + ruas históricas do antigo gueto.", transport: "A pé", priceEur: "0", image: IMAGES.gueto, city: "roma" },
+      { time: "11h30 – 12h30", title: "Último almoço romano", place: "Gueto / centro", desc: "Bagagem já pronta no hotel.", transport: "A pé", priceEur: "15 – 25", image: IMAGES.jantar, city: "roma" },
+      { time: "12h30 – 13h30", title: "Voltar ao hotel / malas", place: "2 Largo Brindisi, San Giovanni, Roma", desc: "Check-out da estadia 11–13/out. Reserva no Booking.", transport: "Metrô / táxi", priceEur: "0", image: IMAGES.hotel, city: "roma", link: { label: "Abrir reserva", url: "https://www.booking.com/Share-bvGJbc6" } },
+      { time: "14h00", title: "Hotel → FCO", place: "Aeroporto di Fiumicino", desc: "Transfer ou táxi. Deixem folga para o trânsito.", transport: "Transfer / táxi", priceEur: "10 – 20", image: IMAGES.aeroporto, city: "roma" },
+      { time: "18h00", title: "Voo FCO → Paris", place: "Fiumicino → Orly ou CDG", desc: "Preferir voo direto. Comparar Orly e CDG com bagagem inclusa.", transport: "Avião", priceEur: "incl.", image: IMAGES.aeroporto, highlight: true, needsReservation: true, city: "roma", link: { label: "Transavia", url: "https://www.transavia.com/" } },
+      { time: "20h10", title: "Chegada + Terracotta", place: "2 Rue Marcel Sembat, apto. 68", desc: "Check-in a partir das 17h. 2º andar, apto. 68. De Orly a linha 14 chega perto (Kremlin-Bicêtre–Hôpital). Código de acesso: formulário + e-mail do dia.", transport: "Linha 14 / táxi", priceEur: "10 – 20", image: IMAGES.hotel, city: "kremlin", highlight: true, link: { label: "Airbnb da reserva", url: "https://www.airbnb.com/l/KQEkCa8j" } },
+      { time: "21h00", title: "Jantar perto do apto", place: "Le Kremlin-Bicêtre", desc: "Sem atração marcada. Sem festa; silêncio das 22h às 8h.", transport: "A pé", priceEur: "20 – 35", image: IMAGES.jantar, city: "kremlin" },
     ],
   },
   {
-    id: 5, emoji: "🛍️", weekday: "Sexta-feira", title: "Despedida de Paris",
-    color: "#F9A825", accent: "#FFF2CC",
-    summary: "Últimas compras de manhã e voo à tarde/noite.",
+    id: 4, emoji: "🗼", weekday: "Quarta-feira", title: "Paris clássica",
+    city: "paris", color: "#1F4E79", accent: "#D6E4F0", pace: "Intenso",
+    summary: "Sem entrar no Louvre. Eixo visual: Notre-Dame, pirâmide por fora, Tuileries, Arco, Trocadéro, Torre Eiffel e cruzeiro no Sena.",
     activities: [
-      { time: "08h", title: "Check-out", place: "Hotel", desc: "Saída do hotel. Guardar bagagem se permitido.", priceEur: "0", image: IMAGES.hotel },
-      { time: "08h30 – 10h30", title: "Últimas compras", place: "Le Marais, Paris", desc: "Mercado, padaria e souvenirs de despedida.", transport: "Metrô", priceEur: "10 – 30", image: IMAGES.bairro },
-      { time: "10h30 – 12h", title: "Musée d'Orsay", place: "Musée d'Orsay", desc: "Opcional — museu numa antiga estação de trem.", transport: "RER C / metrô", priceEur: "0 – 16", priceNote: "Grátis 1º domingo out–mar", image: IMAGES.orsay, needsReservation: true, link: { label: "Reservar d'Orsay", url: "https://billetterie.musee-orsay.fr/en-GB" } },
-      { time: "12h – 13h30", title: "Almoço de despedida", place: "Paris", priceEur: "15 – 25", image: IMAGES.jantar },
-      { time: "14h – 16h", title: "Aeroporto", place: "Aéroport Charles de Gaulle", desc: "Retorno ao hotel, bagagem e transfer (~1h CDG).", transport: "RER B / Navigo", priceEur: "0 – 14", image: IMAGES.aeroporto, link: { label: "Bilhete aeroporto", url: "https://www.iledefrance-mobilites.fr/en/tickets-fares/detail/paris-region-airport-ticket" } },
+      { time: "08h00", title: "Café", place: "Terracotta / padaria", desc: "Sair cedo. Metrô 14 ou 7 até o centro / Île de la Cité.", transport: "Metrô 14 / 7", priceEur: "8", image: IMAGES.cafe, city: "kremlin" },
+      { time: "08h30 – 10h00", title: "Notre-Dame + Île de la Cité", place: "Notre-Dame de Paris", desc: "Caminhada pela ilha. Reserva gratuita opcional para entrar na catedral.", transport: "Metrô / a pé", priceEur: "0", image: IMAGES.notredame, highlight: true, needsReservation: true, link: { label: "Reserva Notre-Dame", url: "https://resa.notredamedeparis.fr/en/reservationindividuelle/tickets" } },
+      { time: "10h10 – 10h45", title: "Louvre — só o exterior", place: "Pyramide du Louvre", desc: "Pirâmide + Cour Napoléon + fotos. Sem entrar no museu.", transport: "A pé", priceEur: "0", image: IMAGES.louvre },
+      { time: "10h45 – 11h30", title: "Jardin des Tuileries", place: "Jardin des Tuileries", desc: "Caminhada tranquila até a Concorde.", transport: "A pé", priceEur: "0", image: IMAGES.tuileries },
+      { time: "11h30 – 12h00", title: "Place de la Concorde", place: "Place de la Concorde", desc: "Fotos + eixo dos Champs-Élysées.", transport: "A pé", priceEur: "0", image: IMAGES.champs },
+      { time: "12h00 – 13h30", title: "Almoço", place: "Concorde / Champs", desc: "Tempo de sentar e descansar — o dia ainda é longo.", transport: "A pé", priceEur: "15 – 25", image: IMAGES.jantar },
+      { time: "14h00 – 15h15", title: "Arco do Triunfo", place: "Arc de Triomphe", desc: "Subida à cobertura. Metrô ou táxi para poupar pernas.", transport: "Metrô 1 / táxi", priceEur: "16", image: IMAGES.arco, highlight: true, needsReservation: true, link: { label: "Reservar Arco", url: "https://www.paris-arc-de-triomphe.fr/en/booking/book-a-ticket" } },
+      { time: "15h30 – 16h30", title: "Champs-Élysées", place: "Champs-Élysées", desc: "Caminhar só o trecho mais interessante — não precisa fazer a avenida inteira.", transport: "A pé", priceEur: "0", image: IMAGES.champs },
+      { time: "16h45 – 17h45", title: "Trocadéro", place: "Trocadéro", desc: "Melhor enquadramento da Torre Eiffel.", transport: "Metrô 6 / 9", priceEur: "0", image: IMAGES.trocadero, highlight: true },
+      { time: "18h00 – 19h30", title: "Torre Eiffel", place: "Tour Eiffel", desc: "Subida de elevador no fim da tarde. Preço varia por nível.", transport: "A pé", priceEur: "23 – 36", priceNote: "Preço dinâmico por nível/modo", image: IMAGES.torre, highlight: true, needsReservation: true, link: { label: "Reservar Torre", url: "https://ticket.toureiffel.paris/en" } },
+      { time: "20h30 – 21h30", title: "Cruzeiro pelo Sena", place: "Port de la Bourdonnais", desc: "Produto simples, sem jantar a bordo — ideal para sentar depois do dia a pé.", transport: "A pé", priceEur: "18 – 25", image: IMAGES.seine, highlight: true, needsReservation: true, link: { label: "Cruzeiro Sena", url: "https://ticket.parisjetaime.com/en/paris-seine-cruises-s113" } },
+      { time: "21h45", title: "Jantar", place: "Centro ou Le Kremlin-Bicêtre", desc: "Volta ao Terracotta de metrô 14/7 ou táxi.", transport: "Metrô / táxi", priceEur: "20 – 35", image: IMAGES.jantar },
+    ],
+  },
+  {
+    id: 5, emoji: "🏰", weekday: "Quinta-feira", title: "Disneyland Park",
+    city: "paris", color: "#6A1B9A", accent: "#E4DFEC", pace: "Intenso",
+    summary: "Um parque, o dia inteiro. Disneyland Park — o castelo clássico, Big Thunder, Pirates, Phantom Manor e Hyperspace Mountain.",
+    activities: [
+      { time: "06h30", title: "Café", place: "Terracotta", desc: "Levar água e camadas de roupa. Outubro esfria à noite no parque.", transport: "—", priceEur: "8", image: IMAGES.cafe, city: "kremlin" },
+      { time: "07h30", title: "Apto → Disney", place: "Marne-la-Vallée–Chessy", desc: "Do Terracotta: metrô 14 até Châtelet–Les Halles e RER A até a Disney. Cerca de €5–7 no RER.", transport: "Metrô 14 + RER A", priceEur: "5 – 7", image: IMAGES.disney, link: { label: "Mapa RER A", url: "https://www.ratp.fr/en/getting-around/maps/rer-a" } },
+      { time: "08h30 – 09h00", title: "Chegada ao complexo", place: "Disneyland Paris", desc: "Entrar antes do pico.", transport: "A pé", priceEur: "0", image: IMAGES.disney },
+      { time: "09h30 – 12h30", title: "Atrações principais", place: "Disneyland Park", desc: "Big Thunder Mountain, Pirates of the Caribbean, Phantom Manor e Star Wars: Hyperspace Mountain.", transport: "A pé", priceEur: "80 – 95", priceNote: "1 dia / 1 parque · preço dinâmico", image: IMAGES.disney, highlight: true, needsReservation: true, link: { label: "Comprar ingresso", url: "https://www.disneylandparis.com/en-usd/tickets/" } },
+      { time: "12h30 – 13h30", title: "Almoço", place: "Disneyland Park", desc: "Reservar restaurante se quiserem mesa certa.", transport: "A pé", priceEur: "15 – 30", image: IMAGES.disney },
+      { time: "13h30 – 17h30", title: "Castelo + Main Street", place: "Disneyland Park", desc: "Sleeping Beauty Castle e o restante das atrações clássicas.", transport: "A pé", priceEur: "incl.", image: IMAGES.disney },
+      { time: "17h30 – 19h30", title: "Shows, paradas e fotos", place: "Disneyland Park", desc: "Conferir o app oficial do dia.", transport: "A pé", priceEur: "incl.", image: IMAGES.disney, link: { label: "Calendário Disney", url: "https://www.disneylandparis.com/en-usd/calendar/" } },
+      { time: "19h30 – 21h30", title: "Jantar + noite no parque", place: "Disneyland Park", desc: "Ficar até o encerramento se todos estiverem bem.", transport: "A pé", priceEur: "20 – 35", image: IMAGES.jantar },
+      { time: "22h00", title: "RER A → Terracotta", place: "2 Rue Marcel Sembat", desc: "RER A até Châtelet e metrô 14 de volta a Le Kremlin-Bicêtre.", transport: "RER A + metrô 14", priceEur: "5 – 7", image: IMAGES.aeroporto, city: "kremlin" },
+    ],
+  },
+  {
+    id: 6, emoji: "👑", weekday: "Sexta-feira", title: "Versalhes + Montmartre",
+    city: "paris", color: "#5D4037", accent: "#EFEBE9", pace: "Médio/alto",
+    summary: "Três Parises no mesmo dia: o palácio, o bairro boêmio e o eixo elegante da Opéra / Galeries Lafayette. Último jantar da viagem.",
+    activities: [
+      { time: "07h00", title: "Café", place: "Terracotta", desc: "Sair cedo. Do apto: metrô até uma estação do RER C (ex. Saint-Michel ou Austerlitz).", transport: "—", priceEur: "8", image: IMAGES.cafe, city: "kremlin" },
+      { time: "07h30", title: "Paris → Versailles", place: "Versailles Château Rive Gauche", desc: "RER C até a estação do palácio. Cerca de €5–10.", transport: "RER C", priceEur: "5 – 10", image: IMAGES.versailles, link: { label: "Bilhetes SNCF", url: "https://www.sncf-connect.com/" } },
+      { time: "08h45 – 11h00", title: "Palácio de Versailles", place: "Château de Versailles", desc: "Salão dos Espelhos + apartamentos. Horário marcado. Passport de alta temporada ~€35.", transport: "A pé", priceEur: "35", priceNote: "Passport alta temporada", image: IMAGES.versailles, highlight: true, needsReservation: true, link: { label: "Reservar Versailles", url: "https://en.chateauversailles.fr/plan-your-visit/tickets-and-rates" } },
+      { time: "11h00 – 12h30", title: "Jardins", place: "Jardins de Versailles", desc: "Priorizar os eixos principais. Trenzinho se alguém estiver cansado. Incluído no Passport.", transport: "A pé / trenzinho", priceEur: "incl.", image: IMAGES.versailles },
+      { time: "12h30 – 13h30", title: "Almoço", place: "Versailles", desc: "Dentro ou fora do domínio.", transport: "A pé", priceEur: "15 – 25", image: IMAGES.jantar },
+      { time: "13h30 – 14h30", title: "Versailles → Paris", place: "Paris", desc: "Mesmo RER C de volta.", transport: "RER C", priceEur: "5 – 10", image: IMAGES.aeroporto },
+      { time: "15h30 – 17h30", title: "Montmartre + Sacré-Cœur", place: "Sacré-Cœur, Montmartre", desc: "Place du Tertre, ruelas e a vista da basílica.", transport: "Metrô 2 / 12", priceEur: "0", image: IMAGES.montmartre, highlight: true },
+      { time: "18h00 – 18h45", title: "Opéra Garnier", place: "Palais Garnier", desc: "Entrar se houver horário; senão, ficar na fachada.", transport: "Metrô 7 / 8 / RER A", priceEur: "0 – 25", priceNote: "Visita ~€25 variável", image: IMAGES.opera, needsReservation: true, link: { label: "Visitas Opéra", url: "https://www.operadeparis.fr/en/visits/palais-garnier" } },
+      { time: "18h45 – 20h00", title: "Galeries Lafayette", place: "Galeries Lafayette Haussmann", desc: "Cúpula + terraço panorâmico. Compras opcionais. Terraço grátis.", transport: "A pé", priceEur: "0", image: IMAGES.compras, link: { label: "Terraço Galeries", url: "https://haussmann.galerieslafayette.com/en/rooftop/" } },
+      { time: "20h15 – 21h00", title: "Apto / descanso", place: "2 Rue Marcel Sembat, apto. 68", desc: "Pausa curta no Terracotta antes do jantar especial. Silêncio a partir das 22h.", transport: "Metrô 14 / 7", priceEur: "0", image: IMAGES.hotel, city: "kremlin" },
+      { time: "21h00 – 23h00", title: "Jantar especial", place: "Paris", desc: "Último jantar da viagem — vale pagar um pouco mais.", transport: "Metrô / táxi", priceEur: "35 – 60", image: IMAGES.jantar, highlight: true },
+    ],
+  },
+  {
+    id: 7, emoji: "🇧🇷", weekday: "Sábado", title: "Check-out e retorno",
+    city: "paris", color: "#F9A825", accent: "#FFF2CC", pace: "Leve",
+    summary: "Dia leve: café, malas e CDG. Confirmem o horário real do voo na véspera e saiam com antecedência de longo curso.",
+    activities: [
+      { time: "Até 11h", title: "Café e check-out", place: "2 Rue Marcel Sembat, apto. 68", desc: "Check-out até 11h. Não há recepção — deixem o apto como receberam. Código e Airbnb na aba Reservas.", transport: "—", priceEur: "8", image: IMAGES.cafe, city: "kremlin", link: { label: "Airbnb da reserva", url: "https://www.airbnb.com/l/KQEkCa8j" } },
+      { time: "A confirmar", title: "Terracotta → CDG", place: "Aéroport Charles de Gaulle", desc: "Metrô 14 até Châtelet + RER B, ou táxi/transfer para 5 + malas.", transport: "Metrô 14 + RER B / transfer", priceEur: "12 – 25", image: IMAGES.aeroporto, link: { label: "Acesso CDG", url: "https://www.parisaeroport.fr/en/passengers/access/paris-charles-de-gaulle" } },
+      { time: "Voo", title: "CDG → GRU", place: "Aéroport Charles de Gaulle", desc: "Longo curso. Confirmem o horário 72h antes e cheguem cedo.", transport: "Avião", priceEur: "incl.", image: IMAGES.aeroporto, highlight: true },
     ],
   },
 ];
@@ -213,32 +417,34 @@ DAYS.forEach((day) => {
   day.activities.forEach((a, idx) => {
     a.key = `${day.id}-${idx}`;
     a.imageFallback = IMG_FALLBACK;
-    if (!a.maps && a.place) a.maps = mapsUrl(a.place);
+    a.city = a.city || day.city;
+    if (!a.maps && a.place) a.maps = mapsUrl(a.place, a.city);
     if (a.link && a.needsReservation === undefined) a.needsReservation = !!a.highlight;
   });
 });
 
-const BOOKING_LINKS = [
-  { cat: "Louvre", name: "Reservar ingresso", url: "https://ticket.louvre.fr/en", icon: "🎨" },
-  { cat: "Torre Eiffel", name: "Comprar bilhete", url: "https://ticket.toureiffel.paris/en", icon: "🗼" },
-  { cat: "Disneyland", name: "Ingressos Disney", url: "https://www.disneylandparis.com/en-usd/tickets/", icon: "🏰" },
-  { cat: "Arco do Triunfo", name: "Reservar visita", url: "https://www.paris-arc-de-triomphe.fr/en/booking/book-a-ticket", icon: "🏛️" },
-  { cat: "Navigo", name: "Passe semanal", url: "https://www.iledefrance-mobilites.fr/en/tickets-fares/detail/navigo-weekly-ticket", icon: "🚇" },
-  { cat: "d'Orsay", name: "Reservar museu", url: "https://billetterie.musee-orsay.fr/en-GB", icon: "🖼️" },
-  { cat: "Notre-Dame", name: "Visita catedral", url: "https://www.notredamedeparis.fr/en/visit/opening-times-and-access", icon: "⛪" },
-  { cat: "Versailles", name: "Palácio", url: "https://www.chateauversailles.fr/visit/tickets", icon: "👑" },
-];
+FLIGHTS.forEach((f) => {
+  f.maps = mapsUrl(f.mapsPlace, f.city);
+});
 
-const LOUVRE_FREE = [
-  { date: "02/01/2026", iso: "2026-01-02", day: "Sexta", time: "18h – 21h45" },
-  { date: "06/02/2026", iso: "2026-02-06", day: "Sexta", time: "18h – 21h45" },
-  { date: "06/03/2026", iso: "2026-03-06", day: "Sexta", time: "18h – 21h45" },
-  { date: "03/04/2026", iso: "2026-04-03", day: "Sexta", time: "18h – 21h45" },
-  { date: "05/06/2026", iso: "2026-06-05", day: "Sexta", time: "18h – 21h45" },
-  { date: "04/09/2026", iso: "2026-09-04", day: "Sexta", time: "18h – 21h45" },
-  { date: "02/10/2026", iso: "2026-10-02", day: "Sexta", time: "18h – 21h45" },
-  { date: "06/11/2026", iso: "2026-11-06", day: "Sexta", time: "18h – 21h45" },
-  { date: "04/12/2026", iso: "2026-12-04", day: "Sexta", time: "18h – 21h45" },
+const BOOKING_LINKS = [
+  { cat: "Hotel Roma", name: "Reserva 11 a 13/out", url: "https://www.booking.com/Share-bvGJbc6", icon: "🏨" },
+  { cat: "Terracotta Paris", name: "Airbnb 13 a 17/out", url: "https://www.airbnb.com/l/KQEkCa8j", icon: "🏨" },
+  { cat: "Terracotta", name: "Formulário do código de check-in", url: "https://form.jotform.com/232836045643053?bookId=93778904&guestFirstName=Vinicius&guestName=Marcondes%20Ferraz%20de%20Carmo", icon: "🔑" },
+  { cat: "Terracotta", name: "Extras (Sunver)", url: "https://app.sunver.app/guest/terracotta-1", icon: "➕" },
+  { cat: "Panteão", name: "Ingresso oficial €7", url: "https://portale.museiitaliani.it/b2c/n/info/pantheon", icon: "🏛️" },
+  { cat: "Vaticano", name: "Museus + Capela Sistina", url: "https://tickets.museivaticani.va/home", icon: "🇻🇦" },
+  { cat: "Basílica", name: "São Pedro (entrada livre)", url: "https://www.basilicasanpietro.va/en.html", icon: "⛪" },
+  { cat: "Coliseu", name: "Coliseu + Fórum + Palatino", url: "https://colosseo.it/en/orario-e-tariffe/", icon: "🏟️" },
+  { cat: "Notre-Dame", name: "Reserva gratuita", url: "https://resa.notredamedeparis.fr/en/reservationindividuelle/tickets", icon: "⛪" },
+  { cat: "Arco do Triunfo", name: "Subida à cobertura", url: "https://www.paris-arc-de-triomphe.fr/en/booking/book-a-ticket", icon: "🏛️" },
+  { cat: "Torre Eiffel", name: "Bilhete oficial", url: "https://ticket.toureiffel.paris/en", icon: "🗼" },
+  { cat: "Sena", name: "Cruzeiro simples", url: "https://ticket.parisjetaime.com/en/paris-seine-cruises-s113", icon: "🚢" },
+  { cat: "Disneyland", name: "1 dia / 1 parque", url: "https://www.disneylandparis.com/en-usd/tickets/", icon: "🏰" },
+  { cat: "Versalhes", name: "Passport oficial", url: "https://en.chateauversailles.fr/plan-your-visit/tickets-and-rates", icon: "👑" },
+  { cat: "Opéra Garnier", name: "Visita ao palácio", url: "https://www.operadeparis.fr/en/visits/palais-garnier", icon: "🎭" },
+  { cat: "Voo Roma–Paris", name: "Transavia / comparar", url: "https://www.transavia.com/", icon: "✈️" },
+  { cat: "ETIAS", name: "Verificar status oficial", url: "https://travel-europe.europa.eu/etias_en", icon: "🇪🇺" },
 ];
 
 const WEATHER_CODES = {

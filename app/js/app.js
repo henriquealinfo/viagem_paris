@@ -1,22 +1,23 @@
-﻿/** App Paris v2 — profissional */
+﻿/** App Roma + Paris — roteiro 10 a 17/out/2026 */
 (function () {
   "use strict";
 
   const KEYS = {
-    dates: "paris-trip-dates",
-    checklist: "paris-trip-checklist",
-    settings: "paris-trip-settings",
-    reservations: "paris-trip-reservations",
-    activityDone: "paris-trip-activity-done",
-    activityNotes: "paris-trip-activity-notes",
-    actualSpending: "paris-trip-actual-spending",
-    expenseLog: "paris-trip-expense-log",
-    emergencyData: "paris-trip-emergency-data",
-    onboarding: "paris-trip-onboarding-done",
-    visitCount: "paris-trip-visit-count",
-    exchangeMeta: "paris-trip-exchange-meta",
-    installDismissed: "paris-trip-install-dismissed",
-    notifyMeta: "paris-trip-notify-meta",
+    dates: "roma-paris-trip-dates",
+    checklist: "roma-paris-trip-checklist",
+    settings: "roma-paris-trip-settings",
+    reservations: "roma-paris-trip-reservations",
+    activityDone: "roma-paris-trip-activity-done",
+    activityNotes: "roma-paris-trip-activity-notes",
+    actualSpending: "roma-paris-trip-actual-spending",
+    expenseLog: "roma-paris-trip-expense-log",
+    emergencyData: "roma-paris-trip-emergency-data",
+    onboarding: "roma-paris-trip-onboarding-done",
+    visitCount: "roma-paris-trip-visit-count",
+    exchangeMeta: "roma-paris-trip-exchange-meta",
+    installDismissed: "roma-paris-trip-install-dismissed",
+    notifyMeta: "roma-paris-trip-notify-meta",
+    phraseLang: "roma-paris-trip-phrase-lang",
   };
 
   const main = document.getElementById("app-main");
@@ -53,11 +54,13 @@
   }
 
   function saveJSON(key, val) {
-    localStorage.setItem(key, JSON.stringify(val));
+    try {
+      localStorage.setItem(key, JSON.stringify(val));
+    } catch { /* private mode / quota */ }
   }
 
   function loadSettings() {
-    return loadJSON(KEYS.settings, { largeFont: false, dark: false, highContrast: false, showVersailles: false, notifications: true });
+    return loadJSON(KEYS.settings, { largeFont: false, dark: false, highContrast: false, notifications: true });
   }
 
   function saveSettings(s) {
@@ -66,9 +69,11 @@
   }
 
   function loadDates() {
-    const stored = loadJSON(KEYS.dates, {});
-    const merged = { ...TRIP.defaultDates, ...stored };
-    Object.entries(TRIP.defaultDates).forEach(([k, v]) => {
+    const defaults = (typeof TRIP !== "undefined" && TRIP.defaultDates) ? TRIP.defaultDates : {};
+    const raw = loadJSON(KEYS.dates, {});
+    const stored = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    const merged = { ...defaults, ...stored };
+    Object.entries(defaults).forEach(([k, v]) => {
       if (v && !stored[k]) merged[k] = v;
     });
     return merged;
@@ -95,7 +100,8 @@
   function loadReservations() {
     const stored = loadJSON(KEYS.reservations, {});
     const merged = {};
-    RESERVATIONS.forEach((r) => {
+    const list = typeof RESERVATIONS !== "undefined" && Array.isArray(RESERVATIONS) ? RESERVATIONS : [];
+    list.forEach((r) => {
       const dates = loadDates();
       merged[r.id] = {
         code: stored[r.id]?.code || "",
@@ -126,8 +132,9 @@
 
   function dayActivityProgress(day) {
     const done = loadActivityDone();
-    const count = day.activities.filter((a) => done[a.key]).length;
-    return { count, total: day.activities.length };
+    const acts = day && Array.isArray(day.activities) ? day.activities : [];
+    const count = acts.filter((a) => done[a.key]).length;
+    return { count, total: acts.length };
   }
 
   function loadExchangeMeta() {
@@ -140,18 +147,20 @@
   }
 
   function applySettings(s) {
-    document.documentElement.classList.toggle("large-font", s.largeFont);
-    document.documentElement.classList.toggle("dark-mode", s.dark);
-    document.documentElement.classList.toggle("high-contrast", s.highContrast);
+    s = s || {};
+    document.documentElement.classList.toggle("large-font", !!s.largeFont);
+    document.documentElement.classList.toggle("dark-mode", !!s.dark);
+    document.documentElement.classList.toggle("high-contrast", !!s.highContrast);
     btnFont?.classList.toggle("active", s.largeFont);
-    btnTheme.textContent = s.dark ? "\u2600\uFE0F" : "\uD83C\uDF19";
+    if (btnTheme) btnTheme.textContent = s.dark ? "\u2600\uFE0F" : "\uD83C\uDF19";
     btnContrast?.classList.toggle("active", s.highContrast);
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.content = s.highContrast ? "#000" : s.dark ? "#0d1b2a" : "#1F4E79";
   }
 
   function loadEmergency() {
-    return { ...TRIP.emergency, ...loadJSON(KEYS.emergencyData, {}) };
+    const base = (typeof TRIP !== "undefined" && TRIP.emergency) ? TRIP.emergency : {};
+    return { ...base, ...loadJSON(KEYS.emergencyData, {}) };
   }
 
   function saveEmergencyField(field, value) {
@@ -223,7 +232,8 @@
   }
 
   function defaultExpenseDayId() {
-    return getTodayDayId() || 1;
+    const id = getTodayDayId();
+    return id == null ? 1 : id;
   }
 
   function loadActualSpending() {
@@ -231,14 +241,81 @@
     return byDay;
   }
 
-  function includeOptional() { return loadSettings().showVersailles; }
+  function includeOptional() { return false; }
 
-  function allDays() { return getAllDays(includeOptional()); }
+  function allDays() {
+    try {
+      if (typeof getAllDays === "function") {
+        const days = getAllDays();
+        if (Array.isArray(days)) return days;
+      }
+    } catch { /* DAYS ainda não existe */ }
+    return typeof DAYS !== "undefined" && Array.isArray(DAYS) ? DAYS : [];
+  }
+
+  function cityOf(city) {
+    if (typeof cityLabel === "function") {
+      try { return cityLabel(city) || ""; } catch { /* fallback */ }
+    }
+    if (city === "roma") return "Roma";
+    if (city === "paris") return "Paris";
+    if (city === "kremlin") return "Le Kremlin-Bicêtre";
+    if (city === "gru") return "São Paulo";
+    return city || "";
+  }
+
+  function dayOf(id) {
+    if (typeof findDay === "function") {
+      try { return findDay(id); } catch { /* fallback */ }
+    }
+    return allDays().find((d) => d.id === Number(id)) || null;
+  }
+
+  function labelDay(day) {
+    if (typeof dayLabel === "function") {
+      try { return dayLabel(day); } catch { /* fallback */ }
+    }
+    if (!day) return "";
+    return day.kind === "embarque" ? "Embarque" : `Dia ${day.id}`;
+  }
+
+  function mapsOf(place, city) {
+    if (typeof mapsUrl === "function") {
+      try { return mapsUrl(place, city); } catch { /* fallback */ }
+    }
+    if (!place) return null;
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place)}`;
+  }
+
+  function tripBudgetRange() {
+    if (typeof budgetTotalRange === "function") {
+      try { return budgetTotalRange(); } catch { /* fallback */ }
+    }
+    return { min: 0, max: 0 };
+  }
+
+  function tripTimezone() {
+    const tz = (typeof TRIP !== "undefined" && TRIP.timezone) || "Europe/Rome";
+    try {
+      Intl.DateTimeFormat("en", { timeZone: tz });
+      return tz;
+    } catch {
+      return "Europe/Rome";
+    }
+  }
+
+  function clockCityName(iso) {
+    const day = allDays().find((d) => loadDates()[d.id] === iso);
+    if (day) return cityOf(day.city) || "Europa";
+    if (iso <= "2026-10-13") return "Roma";
+    if (iso >= "2026-10-14") return "Paris";
+    return "Europa";
+  }
 
   function parisDateParts(date = new Date()) {
     const parts = {};
     new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Europe/Paris",
+      timeZone: tripTimezone(),
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
@@ -256,7 +333,7 @@
   }
 
   function parisTodayIso() {
-    return new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });
+    return new Date().toLocaleDateString("en-CA", { timeZone: tripTimezone() });
   }
 
   function parisTomorrowIso() {
@@ -302,35 +379,32 @@
     const soon = minsLeft != null && minsLeft <= 60 && minsLeft >= 0 ? ` \u00b7 em ${minsLeft} min` : "";
     return `<div class="next-banner${n.mins != null && n.mins - parisTimeMinutes() <= 30 ? " urgent" : ""}">
       <span class="nb-label">\uD83D\uDD14 Pr\u00f3xima atividade</span>
-      <strong>${timeLabel} \u2014 ${n.activity.title}</strong>
+      <strong>${dayWhen(day)} \u00b7 ${timeLabel} \u2014 ${n.activity.title}</strong>
       ${n.activity.place ? `<small>\uD83D\uDCCD ${n.activity.place}${soon}</small>` : `<small>${soon}</small>`}
     </div>`;
   }
 
-  function louvreAlertHtml() {
-    const tripDates = Object.values(loadDates()).filter(Boolean);
-    if (!tripDates.length) return "";
-    const tripSet = new Set(tripDates);
-    const match = LOUVRE_FREE.find((r) => tripSet.has(r.iso));
-    if (match) {
-      return `<div class="alert-box louvre-match"><strong>\uD83C\uDFA8 Louvre gr\u00e1tis coincide!</strong> ${formatDateBR(match.iso)} (${match.time}). Reserva obrigat\u00f3ria!</div>`;
-    }
-    const octFree = LOUVRE_FREE.find((r) => r.iso === "2026-10-02");
-    const inOct = tripDates.some((d) => d.startsWith("2026-10"));
-    if (inOct && octFree) {
-      return `<div class="alert-box louvre-warn"><strong>Louvre gr\u00e1tis n\u00e3o coincide</strong> com sua viagem. A sexta gr\u00e1tis de outubro \u00e9 ${octFree.date} \u2014 sua viagem \u00e9 11\u201315/out. Ingresso pago (~\u20ac22).</div>`;
-    }
-    return "";
+  function tripAlertHtml() {
+    if (typeof RESERVATIONS === "undefined" || !RESERVATIONS.length) return "";
+    const missing = RESERVATIONS.filter((r) => ["vatican", "colosseum", "eiffel", "disney", "versailles", "flight-fco"].includes(r.id))
+      .filter((r) => !(loadReservations()[r.id]?.code || "").trim());
+    if (!missing.length) return "";
+    return `<div class="alert-box"><strong>Reservas-chave ainda sem c\u00f3digo:</strong> ${missing.map((r) => r.name).join(", ")}. Guardem a confirma\u00e7\u00e3o na aba Reservas.</div>`;
   }
 
   function updateParisClock() {
     if (!parisClock) return;
-    const t = new Date().toLocaleTimeString("pt-BR", {
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "Europe/Paris",
-    });
-    parisClock.textContent = `\uD83D\uDD50 Paris ${t}`;
+    try {
+      const t = new Date().toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: tripTimezone(),
+      });
+      const todayIso = parisTodayIso();
+      parisClock.textContent = `\uD83D\uDCC5 ${shortDate(todayIso)} \u00b7 ${clockCityName(todayIso)} ${t}`;
+    } catch {
+      parisClock.textContent = "";
+    }
   }
 
   function activityNoteHtml(a) {
@@ -373,7 +447,7 @@
     if (!searchResults) return;
     const query = (q || "").trim();
     if (!query) {
-      searchResults.innerHTML = `<p class="search-empty">Digite um lugar ou atividade — ex.: Louvre, Disney, Torre...</p>`;
+      searchResults.innerHTML = `<p class="search-empty">Digite um lugar ou atividade — ex.: Coliseu, Vaticano, Disney, Torre...</p>`;
       return;
     }
     const items = searchActivities(query);
@@ -383,9 +457,9 @@
     }
     searchResults.innerHTML = items.map(({ day, activity: a }) => `
       <button type="button" class="search-hit" data-go-day="${day.id}" data-act-key="${a.key}">
-        <span class="sh-day" style="color:${day.color}">Dia ${day.id}</span>
+        <span class="sh-day" style="color:${day.color}">${labelDay(day)}</span>
         <strong>${a.title}</strong>
-        <small>${a.time}${a.place ? ` \u00b7 ${a.place}` : ""}</small>
+        <small>${activityWhen(day, a)}${a.place ? ` \u00b7 ${a.place}` : ""}</small>
       </button>`).join("");
     searchResults.querySelectorAll(".search-hit").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -437,7 +511,9 @@
       const [id, rest] = chunk.split(":");
       if (!id || !rest) return;
       const [date, time, codeEnc] = rest.split("|");
-      all[id] = { date: date || "", time: time || "", code: decodeURIComponent(codeEnc || "") };
+      let code = "";
+      try { code = decodeURIComponent(codeEnc || ""); } catch { code = codeEnc || ""; }
+      all[id] = { date: date || "", time: time || "", code };
     });
     saveJSON(KEYS.reservations, all);
   }
@@ -460,7 +536,7 @@
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `paris-backup-${parisTodayIso()}.json`;
+    a.download = `roma-paris-backup-${parisTodayIso()}.json`;
     a.click();
     showToast("Backup exportado!");
   }
@@ -512,10 +588,10 @@
     const dates = loadDates();
     for (const [id, date] of Object.entries(dates)) {
       if (date !== tIso) continue;
-      const day = findDay(id, includeOptional());
+      const day = dayOf(id);
       if (!day) continue;
-      const body = day.id === 4 ? "Amanh\u00e3 \u00e9 Disney \u2014 saia cedo!" : `Amanh\u00e3: Dia ${day.id} \u2014 ${day.title}`;
-      try { new Notification("Paris \u2014 Lembrete", { body, icon: "icons/icon-192.png" }); } catch { /* noop */ }
+      const body = day.id === 5 ? "Amanh\u00e3 \u00e9 Disney \u2014 saiam \u00e0s 6h30!" : `Amanh\u00e3: ${labelDay(day)} \u2014 ${day.title}`;
+      try { new Notification("Roma + Paris \u2014 Lembrete", { body, icon: "icons/icon-192.png" }); } catch { /* noop */ }
       break;
     }
   }
@@ -585,7 +661,9 @@
   }
 
   function formatEur(val) {
-    return val === 0 ? "Grátis" : `€ ${val.toFixed(0)}`;
+    const n = Number(val);
+    if (!Number.isFinite(n) || n === 0) return n === 0 ? "Grátis" : "\u2014";
+    return `\u20ac ${n.toFixed(0)}`;
   }
 
   function formatBrl(eur) {
@@ -594,7 +672,8 @@
 
   function dayCostRange(day) {
     let min = 0, max = 0;
-    day.activities.forEach((a) => {
+    const acts = day && Array.isArray(day.activities) ? day.activities : [];
+    acts.forEach((a) => {
       const p = parsePriceRange(a.priceEur);
       min += p.min;
       max += p.max;
@@ -609,8 +688,9 @@
       min += c.min;
       max += c.max;
     });
-    min += TRIP.navigoSemanal;
-    max += TRIP.navigoSemanal;
+    const transport = TRIP.transportEstimate || { min: 0, max: 0 };
+    min += transport.min;
+    max += transport.max;
     return { min, max };
   }
 
@@ -629,6 +709,38 @@
     return `${d}/${m}/${y}`;
   }
 
+  function shortDate(iso) {
+    if (!iso) return "";
+    const [, m, d] = iso.split("-");
+    return `${d}/${m}`;
+  }
+
+  function weekdayShort(weekday) {
+    const map = {
+      "Sábado": "Sáb", "Domingo": "Dom", "Segunda-feira": "Seg",
+      "Terça-feira": "Ter", "Quarta-feira": "Qua",
+      "Quinta-feira": "Qui", "Sexta-feira": "Sex",
+    };
+    return map[weekday] || weekday || "";
+  }
+
+  function dayWhen(day) {
+    if (!day) return "";
+    const date = shortDate(loadDates()[day.id]);
+    const wd = weekdayShort(day.weekday);
+    if (wd && date) return `${wd} ${date}`;
+    return date || wd || labelDay(day);
+  }
+
+  function activityWhen(day, a) {
+    const when = dayWhen(day);
+    return when ? `${when} · ${a.time}` : a.time;
+  }
+
+  function activityWhenHtml(day, a) {
+    return `<span class="when-day">${dayWhen(day)}</span><span class="when-time">${a.time}</span>`;
+  }
+
   function daysBetween(fromIso, toIso) {
     const a = new Date(fromIso + "T12:00:00");
     const b = new Date(toIso + "T12:00:00");
@@ -644,9 +756,10 @@
     if (today < first) return { type: "countdown", days: daysBetween(today, first), first };
     if (today > last) return { type: "done" };
     const todayId = getTodayDayId();
-    if (todayId) {
-      const day = findDay(todayId, includeOptional());
-      return { type: "today", dayId: todayId, title: day.title, emoji: day.emoji, weekday: day.weekday };
+    if (todayId != null) {
+      const day = dayOf(todayId);
+      if (!day) return { type: "during" };
+      return { type: "today", dayId: todayId, title: day.title, emoji: day.emoji, weekday: day.weekday, label: labelDay(day) };
     }
     return { type: "during" };
   }
@@ -655,59 +768,85 @@
     const s = getTripStatus();
     if (s.type === "countdown") {
       const label = s.days === 1 ? "1 dia" : `${s.days} dias`;
-      return `<div class="status-banner countdown" role="status"><span class="sb-icon">\u23F3</span><div><strong>Faltam ${label} para Paris!</strong><br><small>Chegada: ${formatDateBR(s.first)}</small></div></div>`;
+      return `<div class="status-banner countdown" role="status"><span class="sb-icon">\u23F3</span><div><strong>Faltam ${label} para Roma!</strong><br><small>Embarque: ${formatDateBR(s.first)}</small></div></div>`;
     }
     if (s.type === "today") {
-      return `<button class="status-banner today" data-goto-today="1" type="button"><span class="sb-icon">${s.emoji}</span><div><strong>Hoje: Dia ${s.dayId} \u2014 ${s.title}</strong><br><small>${s.weekday}</small></div><span class="sb-arrow">\u2192</span></button>`;
+      return `<button class="status-banner today" data-goto-today="1" type="button"><span class="sb-icon">${s.emoji}</span><div><strong>Hoje: ${s.label} \u2014 ${s.title}</strong><br><small>${s.weekday}</small></div><span class="sb-arrow">\u2192</span></button>`;
     }
     if (s.type === "done") {
-      return `<div class="status-banner done" role="status"><span class="sb-icon">\u2728</span><div><strong>Viagem conclu\u00edda!</strong><br><small>Obrigado, Paris!</small></div></div>`;
+      return `<div class="status-banner done" role="status"><span class="sb-icon">\u2728</span><div><strong>Viagem conclu\u00edda!</strong><br><small>Obrigado, Roma e Paris!</small></div></div>`;
     }
     if (s.type === "during") {
-      return `<div class="status-banner during" role="status"><span class="sb-icon">\uD83C\uDDEB\uD83C\uDDF7</span><div><strong>Boa viagem!</strong><br><small>Aproveite cada dia em Paris.</small></div></div>`;
+      return `<div class="status-banner during" role="status"><span class="sb-icon">\uD83C\uDDEE\uD83C\uDDF9 \uD83C\uDDEB\uD83C\uDDF7</span><div><strong>Boa viagem!</strong><br><small>Roma, Paris, Disney e Versalhes.</small></div></div>`;
     }
     return `<div class="status-banner unknown" role="status"><span class="sb-icon">\uD83D\uDCC5</span><div><strong>Configure as datas</strong><br><small>Toque em um dia do roteiro para definir.</small></div></div>`;
   }
 
   function checklistProgress() {
-    const done = CHECKLIST.filter((c) => loadChecklist()[c.id]).length;
-    return { done, total: CHECKLIST.length };
+    const items = typeof CHECKLIST !== "undefined" && Array.isArray(CHECKLIST) ? CHECKLIST : [];
+    const done = items.filter((c) => loadChecklist()[c.id]).length;
+    return { done, total: items.length };
   }
 
   function qrUrl(data) {
     return `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(data)}`;
   }
 
-  function imgTag(a) {
-    const fb = a.imageFallback || IMG_FALLBACK;
-    return `<img src="${a.image}" data-fallback="${fb}" alt="${a.title}" loading="lazy" class="activity-img" onerror="if(this.dataset.fallback&&!this.classList.contains('is-fallback')){this.src=this.dataset.fallback;this.classList.add('is-fallback')}">`;
+  function escapeXml(text) {
+    return String(text || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function cardCoverSrc(title, color) {
+    const fill = color || "#1F4E79";
+    const size = (title || "").length > 26 ? 26 : 34;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="480" viewBox="0 0 800 480"><rect width="800" height="480" fill="${fill}"/><text x="400" y="255" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="${size}" fill="#F5E6C8" font-weight="700">${escapeXml(title)}</text></svg>`;
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  }
+
+  function imgTag(a, day) {
+    const src = cardCoverSrc(a.title, day && day.color);
+    return `<img src="${src}" alt="${escapeXml(a.title)}" class="activity-img">`;
   }
 
   /* ── Weather ── */
   async function fetchWeather() {
-    const { lat, lon } = TRIP.weather;
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Europe%2FParis&forecast_days=7`;
-    const data = await fetchWithRetry(url);
-    return data?.daily || null;
+    const cities = TRIP.weather.cities || [TRIP.weather];
+    const results = await Promise.all(cities.map(async (city) => {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Europe%2FRome&forecast_days=7`;
+      const data = await fetchWithRetry(url);
+      return { city, daily: data?.daily || null };
+    }));
+    return results;
   }
 
-  function weatherCardHtml(daily, showRetry) {
-    if (!daily) {
-      return `<div class="weather-card loading">${showRetry ? `<button class="btn-retry" data-retry="weather" type="button">\uD83D\uDD04 Tentar novamente</button>` : "Previs\u00e3o indispon\u00edvel offline"}</div>`;
-    }
+  function weatherCityBlock(city, daily) {
     const dates = loadDates();
-    let html = `<div class="weather-card"><h3>🌤️ Previsão — Paris</h3><div class="weather-grid">`;
-    for (let i = 0; i < Math.min(5, daily.time.length); i++) {
+    let html = `<div class="weather-city"><h4>${city.id === "roma" ? "🇮🇹" : "🇫🇷"} ${city.name}</h4><div class="weather-grid">`;
+    const limit = Math.min(4, daily.time.length);
+    for (let i = 0; i < limit; i++) {
       const code = daily.weathercode[i];
       const label = WEATHER_CODES[code] || "🌡️";
       const max = Math.round(daily.temperature_2m_max[i]);
       const min = Math.round(daily.temperature_2m_min[i]);
       const iso = daily.time[i];
       const dayMatch = Object.entries(dates).find(([, d]) => d === iso);
-      const tag = dayMatch ? ` · Dia ${dayMatch[0]}` : "";
+      const matched = dayMatch ? dayOf(dayMatch[0]) : null;
+      const tag = matched ? ` · ${labelDay(matched)}` : "";
       html += `<div class="weather-day"><span class="w-date">${formatDateBR(iso)}${tag}</span><span class="w-icon">${label}</span><span class="w-temp">${min}° – ${max}°C</span></div>`;
     }
     return html + `</div></div>`;
+  }
+
+  function weatherCardHtml(results, showRetry) {
+    if (!results || !results.length || results.every((r) => !r.daily)) {
+      return `<div class="weather-card loading">${showRetry ? `<button class="btn-retry" data-retry="weather" type="button">\uD83D\uDD04 Tentar novamente</button>` : "Previs\u00e3o indispon\u00edvel offline"}</div>`;
+    }
+    const blocks = results.filter((r) => r.daily).map((r) => weatherCityBlock(r.city, r.daily)).join("");
+    return `<div class="weather-card"><h3>🌤️ Previsão — Roma e Paris</h3>${blocks}</div>`;
   }
 
   /* ── Render activity ── */
@@ -719,7 +858,7 @@
     </label>`;
   }
 
-  function renderActivity(a, compact) {
+  function renderActivity(a, day, compact) {
     const p = parsePriceRange(a.priceEur);
     const priceMain =
       a.priceEur === "incl." ? "Incluso" : p.max === 0 ? "Grátis"
@@ -738,7 +877,7 @@
     if (compact) {
       return `
         <article class="activity-compact${a.highlight ? " highlight" : ""}${doneCls}" id="act-${a.key}">
-          <div class="ac-time">${a.time}</div>
+          <div class="ac-time">${activityWhenHtml(day, a)}</div>
           <div class="ac-body">
             <h3>${a.title} ${reserveBadge}</h3>
             ${a.place ? `<p class="place">\uD83D\uDCCD ${a.place}</p>` : ""}
@@ -753,8 +892,8 @@
     return `
       <article class="activity-card${a.highlight ? " highlight" : ""}${doneCls}" id="act-${a.key}">
         <div class="activity-img-wrap">
-          ${imgTag(a)}
-          <span class="time-badge">${a.time}</span>
+          ${imgTag(a, day)}
+          <span class="time-badge">${activityWhenHtml(day, a)}</span>
           ${reserveBadge ? `<span class="reserve-badge-img">Reservar</span>` : ""}
         </div>
         <div class="activity-body">
@@ -781,8 +920,9 @@
 
     return `
       <div class="day-header" style="--day-color:${day.color};--day-accent:${day.accent}">
-        <span class="badge">${day.emoji} Dia ${day.id}</span>
+        <span class="badge">${day.emoji} ${labelDay(day)} \u00b7 ${dayWhen(day)}</span>
         <h2>${day.title}</h2>
+        <p>${day.weekday}${loadDates()[day.id] ? ` \u00b7 ${formatDateBR(loadDates()[day.id])}` : ""} \u00b7 ${cityOf(day.city)}</p>
         <p>${day.summary}</p>
         <div class="date-input-wrap">
           <label for="trip-date-${day.id}">\uD83D\uDCC5 Data deste dia</label>
@@ -793,7 +933,7 @@
       <span>${prog.count} de ${prog.total} atividades feitas</span></div>
       ${compact ? nextActivityBanner(day) : ""}
       <div class="day-total"><span>Custo estimado do dia</span><span class="price">${costText}</span></div>
-      <div class="timeline">${day.activities.map((a) => renderActivity(a, compact)).join("")}</div>
+      <div class="timeline">${day.activities.map((a) => renderActivity(a, day, compact)).join("")}</div>
       <button class="btn-secondary btn-block" type="button" data-share-day="${day.id}">\uD83D\uDCF2 Compartilhar dia no WhatsApp</button>`;
   }
 
@@ -828,50 +968,169 @@
     const slot = document.getElementById("weather-slot");
     if (!slot) return;
     slot.innerHTML = `<div class="weather-card loading">Carregando previs\u00e3o\u2026</div>`;
-    const daily = await fetchWeather();
-    slot.innerHTML = weatherCardHtml(daily, showRetry || !daily);
+    const results = await fetchWeather();
+    const failed = !results.length || results.every((r) => !r.daily);
+    slot.innerHTML = weatherCardHtml(results, showRetry || failed);
     bindWeatherRetry();
   }
 
   /* ── Views ── */
+  function hotelBlockHtml(e, prefix, city, title) {
+    const name = e[`hotel${prefix}`] || "";
+    const address = e[`hotel${prefix}Address`] || "";
+    const phone = e[`hotel${prefix}Phone`] || "";
+    const stay = e[`hotel${prefix}Stay`] || "";
+    const booking = e[`hotel${prefix}Booking`] || "";
+    const checkin = e[`hotel${prefix}Checkin`] || "";
+    const extras = e[`hotel${prefix}Extras`] || "";
+    const mapsCity = prefix === "Paris" ? "kremlin" : city;
+    const maps = mapsOf(address.includes("preencher") ? cityOf(city) : address, mapsCity);
+    const phoneHref = phone && !phone.includes("\u2026") && !phone.includes("...") ? `tel:${phone.replace(/\s/g, "")}` : "";
+    const reservaLabel = prefix === "Roma" ? "Reserva Booking" : "Reserva Airbnb";
+    return `
+      <div class="emergency-hotel-block">
+        <strong>${title}</strong>
+        ${stay ? `<small class="hotel-stay">${stay}</small>` : ""}
+        <input class="emergency-inp" data-emg="hotel${prefix}" value="${name}" placeholder="Nome do hotel">
+        <input class="emergency-inp" data-emg="hotel${prefix}Address" value="${address}" placeholder="Endere\u00e7o">
+        <input class="emergency-inp" data-emg="hotel${prefix}Phone" value="${phone}" placeholder="Telefone">
+        <div class="hotel-qr-row">
+          <a class="btn-secondary" href="${maps}" target="_blank" rel="noopener noreferrer">\uD83D\uDDFA\uFE0F Maps</a>
+          ${phoneHref ? `<a class="btn-secondary" href="${phoneHref}">Ligar</a>` : ""}
+          ${booking ? `<a class="btn-secondary" href="${booking}" target="_blank" rel="noopener noreferrer">${reservaLabel}</a>` : ""}
+          ${checkin ? `<a class="btn-secondary" href="${checkin}" target="_blank" rel="noopener noreferrer">C\u00f3digo check-in</a>` : ""}
+          ${extras ? `<a class="btn-secondary" href="${extras}" target="_blank" rel="noopener noreferrer">Extras</a>` : ""}
+        </div>
+      </div>`;
+  }
+
+  function formatRangeEur(min, max) {
+    if (min === max) return formatEur(min);
+    return `${formatEur(min)} \u2013 ${formatEur(max)}`;
+  }
+
+  function formatRangeBrl(min, max) {
+    if (!min && !max) return "";
+    if (min === max) return formatBrl(min);
+    return `${formatBrl(min)} \u2013 ${formatBrl(max)}`;
+  }
+
+  function budgetHomeCardHtml() {
+    if (typeof BUDGET === "undefined") return "";
+    const t = tripBudgetRange();
+    const n = (typeof TRIP !== "undefined" && TRIP.travelers) || 1;
+    return `<button class="budget-home-card" type="button" id="btn-open-budget">
+      <span class="budget-home-icon">\uD83D\uDCB0</span>
+      <span class="budget-home-text">
+        <strong>Custo aproximado</strong>
+        <small>Por pessoa ${formatRangeEur(t.min, t.max)} \u00b7 Grupo ${formatRangeEur(t.min * n, t.max * n)}</small>
+        <small>Sem passagens a\u00e9reas</small>
+      </span>
+      <span class="arrow">\u203a</span>
+    </button>`;
+  }
+
+  function openBudget() {
+    currentView = "more";
+    moreSubView = "budget";
+    setActiveNav("more");
+    btnBack.classList.remove("hidden");
+    renderBudget();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function renderBudget() {
+    pageTitle.textContent = "Custos";
+    pageSubtitle.textContent = "Estimativa sem passagens";
+    if (typeof BUDGET === "undefined") {
+      main.innerHTML = `<div class="empty-state"><h2>Custos</h2><p>Atualize a p\u00e1gina para carregar as estimativas.</p></div>`;
+      return;
+    }
+    const total = tripBudgetRange();
+    const n = (typeof TRIP !== "undefined" && TRIP.travelers) || 1;
+    const cats = BUDGET.categories.map((cat) => {
+      const r = budgetCategoryRange(cat);
+      return `
+        <section class="budget-cat">
+          <div class="budget-cat-head">
+            <h3>${cat.icon} ${cat.name}</h3>
+            <span>${formatRangeEur(r.min, r.max)}</span>
+          </div>
+          ${cat.items.map((item) => `
+            <div class="budget-line">
+              <div>
+                <strong>${item.name}</strong>
+                ${item.note ? `<small>${item.note}</small>` : ""}
+              </div>
+              <span>${formatRangeEur(item.min, item.max ?? item.min)}</span>
+            </div>`).join("")}
+        </section>`;
+    }).join("");
+
+    main.innerHTML = `
+      <div class="budget-hero">
+        <span class="budget-label">Por pessoa</span>
+        <span class="budget-value">${formatRangeEur(total.min, total.max)}</span>
+        <span class="budget-brl">${formatRangeBrl(total.min, total.max)}</span>
+        <span class="budget-label">Grupo (${n} pessoas)</span>
+        <span class="budget-value group">${formatRangeEur(total.min * n, total.max * n)}</span>
+        <span class="budget-brl">${formatRangeBrl(total.min * n, total.max * n)}</span>
+        <small>C\u00e2mbio de planejamento: \u20ac1 = R$ ${TRIP.cambio.toFixed(2)}</small>
+      </div>
+      <p class="intro-text">${BUDGET.note}</p>
+      ${cats}
+      <button class="btn-secondary btn-block" type="button" id="btn-budget-expenses">Registrar gasto real</button>`;
+
+    document.getElementById("btn-budget-expenses")?.addEventListener("click", openExpenses);
+  }
+
+  function flightsCardHtml() {
+    if (typeof FLIGHTS === "undefined" || !FLIGHTS.length) return "";
+    return `<div class="flight-card">
+      <h3>\u2708\uFE0F Voos</h3>
+      ${FLIGHTS.map((f) => `
+        <a class="flight-row" href="${f.maps}" target="_blank" rel="noopener noreferrer">
+          <strong>${f.from} \u2192 ${f.to}</strong>
+          <span>${formatDateBR(f.date)} \u00b7 ${f.time}${f.arriveTime ? ` \u00b7 chega ${f.arriveTime}` : ""}</span>
+          <small>${f.note}</small>
+        </a>`).join("")}
+    </div>`;
+  }
+
   function renderHome() {
-    pageTitle.textContent = "Paris";
-    pageSubtitle.textContent = TRIP.subtitle;
-    btnBack.classList.add("hidden");
+    try {
+    if (pageTitle) pageTitle.textContent = "Roma + Paris";
+    if (pageSubtitle) pageSubtitle.textContent = (typeof TRIP !== "undefined" && TRIP.subtitle) || "Nossa viagem";
+    btnBack?.classList.add("hidden");
     const prog = checklistProgress();
     const e = loadEmergency();
-    const hotelMaps = mapsUrl(e.hotelAddress.includes("preencher") ? "Paris" : e.hotelAddress);
 
     main.innerHTML = `
       ${statusBannerHtml()}
-      ${louvreAlertHtml()}
+      ${tripAlertHtml()}
       <section class="hero">
-        <div class="hero-flag">\uD83C\uDDEB\uD83C\uDDF7</div>
+        <div class="hero-flag">\uD83C\uDDEE\uD83C\uDDF9 \uD83C\uDDEB\uD83C\uDDF7</div>
         <h2>${TRIP.title}</h2>
-        <p>Roteiro completo com fotos, mapas e pre\u00e7os.</p>
+        <p>5 viajantes \u00b7 2 pa\u00edses \u00b7 roteiro hor\u00e1rio a hor\u00e1rio.</p>
       </section>
+      ${flightsCardHtml()}
+      ${budgetHomeCardHtml()}
       <div id="weather-slot"><div class="weather-card loading">Carregando previs\u00e3o\u2026</div></div>
       <div class="stats-grid">
-        <div class="stat-card"><span class="num">5</span><span class="lbl">Dias</span></div>
+        <div class="stat-card"><span class="num">8</span><span class="lbl">Dias</span></div>
         <div class="stat-card"><span class="num">${prog.done}/${prog.total}</span><span class="lbl">Checklist</span></div>
-        <div class="stat-card"><span class="num">🏰</span><span class="lbl">Disney</span></div>
+        <div class="stat-card"><span class="num">2</span><span class="lbl">Cidades</span></div>
       </div>
       <div class="emergency-card">
         <h3>\uD83C\uDD98 Emerg\u00eancia</h3>
         <div class="emergency-grid">
-          <div class="emergency-hotel-block">
-            <strong>Hotel</strong>
-            <input class="emergency-inp" data-emg="hotel" value="${e.hotel}" placeholder="Nome do hotel">
-            <input class="emergency-inp" data-emg="hotelAddress" value="${e.hotelAddress}" placeholder="Endere\u00e7o">
-            <input class="emergency-inp" data-emg="hotelPhone" value="${e.hotelPhone}" placeholder="Telefone">
-            <div class="hotel-qr-row">
-              <a class="btn-secondary" href="${hotelMaps}" target="_blank" rel="noopener noreferrer">\uD83D\uDDFA\uFE0F Maps hotel</a>
-              <img class="hotel-qr" src="${qrUrl(hotelMaps)}" alt="QR Maps hotel" width="72" height="72">
-            </div>
-          </div>
+          ${hotelBlockHtml(e, "Roma", "roma", "Hotel Roma")}
+          ${hotelBlockHtml(e, "Paris", "paris", "Apto Paris")}
           <div><strong>Contato</strong><br>${e.contactName}<br>\uD83D\uDCDE ${e.contactPhone}</div>
-          <div><strong>Europa</strong><br>\uD83D\uDEA8 ${e.emergencyEU}<br>\uD83C\uDFE5 ${e.medicalFR}<br>\uD83D\uDC6E ${e.policeFR}</div>
-          <div><strong>Embaixada BR</strong><br>${e.embassy}<br>\uD83D\uDCDE ${e.embassyPhone}</div>
+          <div><strong>Europa / It\u00e1lia</strong><br>\uD83D\uDEA8 ${e.emergencyEU}<br>\uD83C\uDFE5 ${e.medicalIT}<br>\uD83D\uDC6E ${e.policeIT}</div>
+          <div><strong>Fran\u00e7a</strong><br>\uD83C\uDFE5 ${e.medicalFR}<br>\uD83D\uDC6E ${e.policeFR}</div>
+          <div><strong>Embaixada Roma</strong><br>${e.embassyRoma}<br>\uD83D\uDCDE ${e.embassyRomaPhone}</div>
+          <div><strong>Embaixada Paris</strong><br>${e.embassyParis}<br>\uD83D\uDCDE ${e.embassyParisPhone}</div>
           <div><strong>Seguro</strong><br>${e.insurance}</div>
           <div><strong>Passaporte</strong><br>${e.passportNote}</div>
         </div>
@@ -883,8 +1142,8 @@
         const ap = dayActivityProgress(d);
         const costLabel = cost.max === 0 ? "Gr\u00e1tis" : cost.min === cost.max ? `~\u20ac${cost.max}` : `\u20ac${cost.min}\u2013${cost.max}`;
         return `<button class="day-card" type="button" data-day="${d.id}" style="--day-color:${d.color}">
-          <span class="emoji">${d.emoji}</span><div class="info"><h3>Dia ${d.id} \u2014 ${d.title}</h3>
-          <p>${dates[d.id] ? formatDateBR(dates[d.id]) : d.weekday} \u00b7 ${costLabel}${ap.count ? ` \u00b7 ${ap.count}/${ap.total} \u2713` : ""}</p></div><span class="arrow">\u203a</span></button>`;
+          <span class="emoji">${d.emoji}</span><div class="info"><h3>${labelDay(d)} \u00b7 ${dayWhen(d)} \u2014 ${d.title}</h3>
+          <p>${dates[d.id] ? formatDateBR(dates[d.id]) : d.weekday} \u00b7 ${cityOf(d.city)} \u00b7 ${costLabel}${ap.count ? ` \u00b7 ${ap.count}/${ap.total} \u2713` : ""}</p></div><span class="arrow">\u203a</span></button>`;
       }).join("")}</div>`;
 
     main.querySelectorAll(".day-card").forEach((b) => b.addEventListener("click", () => showDay(Number(b.dataset.day))));
@@ -892,7 +1151,15 @@
       inp.addEventListener("change", (e) => saveEmergencyField(e.target.dataset.emg, e.target.value));
     });
     bindStatusBanner();
+    document.getElementById("btn-open-budget")?.addEventListener("click", openBudget);
     loadWeatherSlot(false);
+    } catch (err) {
+      console.error(err);
+      if (main) {
+        main.innerHTML = bootErrorHtml();
+        document.getElementById("btn-reload-app")?.addEventListener("click", () => location.reload());
+      }
+    }
   }
 
   function openExpenses() {
@@ -911,7 +1178,7 @@
     btnBack.classList.add("hidden");
     const todayId = getTodayDayId();
 
-    if (!todayId) {
+    if (todayId == null) {
       const dates = loadDates();
       main.innerHTML = `
         <div class="empty-state">
@@ -920,17 +1187,17 @@
           <p>Preencha a data de cada dia no roteiro, ou escolha manualmente:</p>
           <div class="day-grid">${allDays().map((d) => `
             <button class="day-card" type="button" data-day="${d.id}" style="--day-color:${d.color}">
-              <span class="emoji">${d.emoji}</span><div class="info"><h3>Dia ${d.id}${d.optional ? " (opc.)" : ""}</h3>
-              <p>${dates[d.id] ? formatDateBR(dates[d.id]) : d.weekday}</p></div></button>`).join("")}</div>
+              <span class="emoji">${d.emoji}</span><div class="info"><h3>${labelDay(d)}</h3>
+              <p>${dates[d.id] ? formatDateBR(dates[d.id]) : d.weekday} · ${cityOf(d.city)}</p></div></button>`).join("")}</div>
         </div>`;
       pageSubtitle.textContent = new Date().toLocaleDateString("pt-BR");
       main.querySelectorAll(".day-card").forEach((b) => b.addEventListener("click", () => showDay(Number(b.dataset.day), true)));
       return;
     }
 
-    const day = findDay(todayId, includeOptional());
+    const day = dayOf(todayId);
     const todaySpent = expenseSummary().byDay[todayId] || 0;
-    pageSubtitle.textContent = `${day.weekday} · ${formatDateBR(loadDates()[todayId])}`;
+    pageSubtitle.textContent = `${day.weekday} · ${formatDateBR(loadDates()[todayId])} · ${cityOf(day.city)}`;
     main.innerHTML = renderDayContent(day, true) + `
       <button class="expense-today-btn" type="button" id="btn-add-expense">
         \uD83D\uDCB0 ${todaySpent ? `Hoje: ${formatEur(todaySpent)} \u00b7 ` : ""}Registrar gasto
@@ -941,25 +1208,21 @@
 
   function renderDayPicker() {
     pageTitle.textContent = "Roteiro";
-    pageSubtitle.textContent = "5 dias em Paris";
+    pageSubtitle.textContent = "Roma · Paris · 10 a 17/out";
     btnBack.classList.add("hidden");
     main.innerHTML = `<p class="intro-text">Toque no dia para ver horários, fotos, mapas e preços.</p>
-      <label class="toggle-row"><input type="checkbox" id="toggle-versailles" ${includeOptional() ? "checked" : ""}> Mostrar dia opcional Versailles (Dia 6)</label>
       <div class="day-grid">${allDays().map((d) => `<button class="day-card" type="button" data-day="${d.id}" style="--day-color:${d.color}">
-        <span class="emoji">${d.emoji}</span><div class="info"><h3>Dia ${d.id}${d.optional ? " (opc.)" : ""}</h3><p>${d.title}</p></div><span class="arrow">›</span></button>`).join("")}</div>`;
-    document.getElementById("toggle-versailles")?.addEventListener("change", (e) => {
-      const s = loadSettings(); s.showVersailles = e.target.checked; saveSettings(s); renderDayPicker();
-    });
+        <span class="emoji">${d.emoji}</span><div class="info"><h3>${labelDay(d)} · ${dayWhen(d)}</h3><p>${d.title} · ${cityOf(d.city)}${d.pace ? ` · ${d.pace}` : ""}</p></div><span class="arrow">›</span></button>`).join("")}</div>`;
     main.querySelectorAll(".day-card").forEach((b) => b.addEventListener("click", () => showDay(Number(b.dataset.day))));
   }
 
   function showDay(dayId, fromToday, activityKey) {
-    selectedDay = findDay(dayId, includeOptional());
+    selectedDay = dayOf(dayId);
     if (!selectedDay) return;
     currentView = fromToday ? "today-detail" : "day-detail";
     setActiveNav(fromToday ? "today" : "days");
-    pageTitle.textContent = `Dia ${dayId}`;
-    pageSubtitle.textContent = selectedDay.weekday;
+    pageTitle.textContent = `${labelDay(selectedDay)} · ${dayWhen(selectedDay)}`;
+    pageSubtitle.textContent = `${selectedDay.weekday} · ${loadDates()[selectedDay.id] ? formatDateBR(loadDates()[selectedDay.id]) + " · " : ""}${cityOf(selectedDay.city)}`;
     btnBack.classList.remove("hidden");
     main.innerHTML = renderDayContent(selectedDay, false);
     bindDayDateInputs();
@@ -974,10 +1237,10 @@
     const data = loadReservations()[r.id] || {};
     const hasCode = !!data.code?.trim();
     return `
-      <div class="wallet-card" style="--wallet-color:${findDay(r.dayId, true)?.color || "#1F4E79"}">
+      <div class="wallet-card" style="--wallet-color:${dayOf(r.dayId)?.color || "#1F4E79"}">
         <div class="wallet-head">
           <span class="wallet-icon">${r.icon}</span>
-          <div><strong>${r.name}</strong><br><small>Dia ${r.dayId}${data.date ? ` \u00b7 ${formatDateBR(data.date)}` : ""}</small></div>
+          <div><strong>${r.name}</strong><br><small>${labelDay(dayOf(r.dayId))} \u00b7 ${dayWhen(dayOf(r.dayId))}${data.date ? ` \u00b7 ${formatDateBR(data.date)}` : ""}</small></div>
         </div>
         <div class="wallet-fields">
           <label>\uD83D\uDCC5 Data<input type="date" data-res="${r.id}" data-field="date" value="${data.date || ""}"></label>
@@ -1030,6 +1293,7 @@
     pageSubtitle.textContent = "Ferramentas";
     btnBack.classList.add("hidden");
 
+    if (moreSubView === "budget") return renderBudget();
     if (moreSubView === "expenses") return renderExpenses();
     if (moreSubView === "checklist") return renderChecklist();
     if (moreSubView === "phrases") return renderPhrases();
@@ -1038,9 +1302,10 @@
 
     main.innerHTML = `
       <div class="more-grid">
+        <button class="more-card" type="button" data-sub="budget">\uD83D\uDCCA<span>Custos</span></button>
         <button class="more-card" type="button" data-sub="expenses">\uD83D\uDCB0<span>Gastos</span></button>
         <button class="more-card" type="button" data-sub="checklist">\u2705<span>Checklist</span></button>
-        <button class="more-card" type="button" data-sub="phrases">\uD83C\uDDEB\uD83C\uDDF7<span>Frases</span></button>
+        <button class="more-card" type="button" data-sub="phrases">\uD83C\uDDEE\uD83C\uDDF9<span>Frases</span></button>
         <button class="more-card" type="button" data-sub="tips">\uD83D\uDCA1<span>Dicas</span></button>
         <button class="more-card" type="button" data-action="search">\uD83D\uDD0D<span>Buscar</span></button>
         <button class="more-card" type="button" data-sub="backup">\uD83D\uDCBE<span>Backup</span></button>
@@ -1051,7 +1316,7 @@
         <button class="more-card" type="button" data-action="rate">\uD83D\uDCB1<span>C\u00e2mbio</span></button>
       </div>
       <footer class="app-footer">
-        <p>Paris Trip App · v${APP_VERSION}</p>
+        <p>Roma + Paris · v${APP_VERSION}</p>
         <p class="footer-sub">${TRIP.title}</p>
       </footer>`;
 
@@ -1086,7 +1351,7 @@
     const dayOptions = allDays().map((d) => {
       const dates = loadDates();
       const label = dates[d.id] ? formatDateBR(dates[d.id]) : d.weekday;
-      return `<option value="${d.id}" ${d.id === defaultDay ? "selected" : ""}>Dia ${d.id} \u2014 ${label}</option>`;
+      return `<option value="${d.id}" ${d.id === defaultDay ? "selected" : ""}>${labelDay(d)} \u00b7 ${dayWhen(d)} \u2014 ${label}</option>`;
     }).join("");
 
     const grouped = {};
@@ -1102,7 +1367,7 @@
       return `
         <div class="expense-day-group" style="--day-color:${d.color}">
           <div class="expense-day-head">
-            <strong>Dia ${d.id}</strong>
+            <strong>${labelDay(d)} \u00b7 ${dayWhen(d)}</strong>
             <span>${formatEur(sub)} ${formatBrl(sub)}</span>
           </div>
           ${items.map((e) => `
@@ -1202,47 +1467,76 @@
     });
   }
 
-  function speakFrench(text) {
+  function speakPhrase(text, lang) {
     if (!("speechSynthesis" in window)) { showToast("\u00c1udio n\u00e3o dispon\u00edvel"); return; }
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = "fr-FR";
+    u.lang = lang;
     u.rate = 0.85;
     window.speechSynthesis.speak(u);
   }
 
   function renderPhrases() {
-    pageTitle.textContent = "Franc\u00eas";
-    main.innerHTML = `<p class="intro-text">Toque para copiar \u00b7 \uD83D\uDD0A para ouvir a pron\u00fancia.</p>
-      <div class="phrase-list">${FRENCH_PHRASES.map((p, i) => `
+    const activeId = loadJSON(KEYS.phraseLang, "it");
+    const pack = PHRASE_PACKS.find((p) => p.id === activeId) || PHRASE_PACKS[0];
+    pageTitle.textContent = "Frases";
+    pageSubtitle.textContent = pack.label;
+    main.innerHTML = `
+      <div class="lang-tabs" role="tablist">
+        ${PHRASE_PACKS.map((p) => `<button type="button" class="lang-tab${p.id === pack.id ? " active" : ""}" data-lang="${p.id}">${p.flag} ${p.label}</button>`).join("")}
+      </div>
+      <p class="intro-text">Toque para copiar \u00b7 \uD83D\uDD0A para ouvir a pron\u00fancia.</p>
+      <div class="phrase-list">${pack.items.map((p, i) => `
         <div class="phrase-item-wrap">
-          <button class="phrase-item" type="button" data-phrase="${i}" aria-label="Copiar: ${p.fr}">
+          <button class="phrase-item" type="button" data-phrase="${i}" aria-label="Copiar: ${p.lang}">
             <div class="phrase-pt">${p.pt}</div>
-            <div class="phrase-fr">${p.fr}</div>
+            <div class="phrase-fr">${p.lang}</div>
             ${p.note ? `<div class="phrase-note">${p.note}</div>` : ""}
           </button>
-          <button class="btn-speak" type="button" data-speak="${i}" aria-label="Ouvir ${p.fr}">\uD83D\uDD0A</button>
+          <button class="btn-speak" type="button" data-speak="${i}" aria-label="Ouvir ${p.lang}">\uD83D\uDD0A</button>
         </div>`).join("")}</div>`;
+    main.querySelectorAll("[data-lang]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        saveJSON(KEYS.phraseLang, btn.dataset.lang);
+        renderPhrases();
+      });
+    });
     main.querySelectorAll("[data-phrase]").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const p = FRENCH_PHRASES[Number(btn.dataset.phrase)];
-        navigator.clipboard?.writeText(p.fr).then(() => showToast(`Copiado: ${p.fr}`));
+        const p = pack.items[Number(btn.dataset.phrase)];
+        navigator.clipboard?.writeText(p.lang).then(() => showToast(`Copiado: ${p.lang}`));
       });
     });
     main.querySelectorAll("[data-speak]").forEach((btn) => {
-      btn.addEventListener("click", () => speakFrench(FRENCH_PHRASES[Number(btn.dataset.speak)].fr));
+      btn.addEventListener("click", () => speakPhrase(pack.items[Number(btn.dataset.speak)].lang, pack.voice));
     });
   }
 
   function renderTips() {
     pageTitle.textContent = "Dicas";
+    pageSubtitle.textContent = "Do guia da viagem";
     main.innerHTML = `
-      <div class="alert-box"><strong>Louvre grátis:</strong> 1ª sexta do mês, 18h–21h45 (exc. jul/ago). Reserva obrigatória!</div>
-      <div class="tip-card"><h3>💡 Dicas gerais</h3><ul>${TRIP.dicasGerais.map((t) => `<li>${t}</li>`).join("")}</ul></div>
-      <div class="tip-card"><h3>🎨 Louvre — dias gratuitos 2026</h3>
-        <table class="louvre-table"><thead><tr><th>Data</th><th>Dia</th><th>Horário</th></tr></thead>
-        <tbody>${LOUVRE_FREE.map((r) => `<tr><td>${r.date}</td><td>${r.day}</td><td>${r.time}</td></tr>`).join("")}</tbody></table>
-        <a class="btn-link" href="https://ticket.louvre.fr/en" target="_blank" rel="noopener">Reservar Louvre →</a></div>`;
+      <div class="alert-box"><strong>Onde vale pagar mais:</strong> voo em hor\u00e1rio conveniente, hotel central em Paris, ingresso com hor\u00e1rio do Vaticano/Coliseu e um jantar especial.</div>
+      <div class="tip-card"><h3>\uD83D\uDCA1 Dicas gerais</h3><ul>${TRIP.dicasGerais.map((t) => `<li>${t}</li>`).join("")}</ul></div>
+      <div class="tip-card"><h3>\uD83D\uDEEB Log\u00edstica</h3>
+        <ul>
+          <li>Roma: hotel em San Giovanni, ao lado do metr\u00f4. Centro, Vaticano e FCO de metr\u00f4 ou t\u00e1xi quando o grupo cansar.</li>
+          <li>Paris: Terracotta em Le Kremlin-Bic\u00eatre (apto. 68, 2\u00ba andar). Metr\u00f4 14 / 7. De Orly a linha 14 \u00e9 a mais direta.</li>
+          <li>Check-in do Terracotta: formul\u00e1rio com e-mail obrigat\u00f3rio no dia 13/10; as instru\u00e7\u00f5es chegam por e-mail. Concierge NAPS IMMO: +33 6 51 45 48 36.</li>
+          <li>Disney: RER A at\u00e9 Marne-la-Vall\u00e9e\u2013Chessy.</li>
+          <li>Versalhes: RER C at\u00e9 Versailles Ch\u00e2teau Rive Gauche.</li>
+          <li>CDG: RER B ou transfer, conforme hor\u00e1rio e bagagem.</li>
+        </ul>
+      </div>
+      <div class="tip-card"><h3>\uD83D\uDCB0 Refer\u00eancia por pessoa</h3>
+        <p>C\u00e2mbio de planejamento do guia: \u20ac1 \u2248 R$ 5,90.</p>
+        <ul>
+          <li>Pante\u00e3o \u20ac7 \u00b7 Vaticano \u20ac25 \u00b7 Coliseu ~\u20ac18\u201325</li>
+          <li>Arco \u20ac16 \u00b7 Torre ~\u20ac23\u201336 \u00b7 Cruzeiro ~\u20ac18\u201325</li>
+          <li>Disney 1 parque ~\u20ac80\u201395 \u00b7 Versalhes ~\u20ac35 \u00b7 \u00d3pera ~\u20ac25</li>
+        </ul>
+      </div>
+      <a class="btn-link" href="https://travel-europe.europa.eu/etias_en" target="_blank" rel="noopener">Verificar ETIAS \u2192</a>`;
   }
 
   function renderBackup() {
@@ -1278,24 +1572,26 @@
       navigator.clipboard?.writeText(url).then(() => showToast("Link copiado!"));
     });
     document.getElementById("share-sync").addEventListener("click", () => {
-      window.open(`https://wa.me/?text=${encodeURIComponent("Roteiro Paris \u2014 dados sincronizados:\n" + url)}`, "_blank");
+      window.open(`https://wa.me/?text=${encodeURIComponent("Roteiro Roma + Paris \u2014 dados sincronizados:\n" + url)}`, "_blank");
     });
   }
 
   /* ── Share & PDF ── */
   function shareAppWhatsApp() {
     const url = buildShareUrl();
-    window.open(`https://wa.me/?text=${encodeURIComponent(`🇫🇷 Roteiro Paris — 5 dias\nFotos, mapas, preços e reservas:\n${url}`)}`, "_blank");
+    window.open(`https://wa.me/?text=${encodeURIComponent(`🇮🇹🇫🇷 Roteiro Roma + Paris — 10 a 17/out/2026\nFotos, mapas, preços e reservas:\n${url}`)}`, "_blank");
   }
 
   function shareDayWhatsApp(dayId) {
-    const day = DAYS.find((d) => d.id === dayId);
+    const day = dayOf(dayId);
+    if (!day) return;
     const dates = loadDates();
-    let text = `🇫🇷 *Dia ${dayId} — ${day.title}*\n`;
+    const flag = day.city === "roma" ? "🇮🇹" : day.city === "paris" ? "🇫🇷" : "✈️";
+    let text = `${flag} *${labelDay(day)} — ${day.title}*\n`;
     if (dates[dayId]) text += `📅 ${formatDateBR(dates[dayId])}\n`;
     text += `\n`;
     day.activities.forEach((a) => {
-      text += `⏰ ${a.time} — ${a.title}\n`;
+      text += `⏰ ${activityWhen(day, a)} — ${a.title}\n`;
       if (a.place) text += `   📍 ${a.place}\n`;
       text += `   💰 ${a.priceEur}\n\n`;
     });
@@ -1310,6 +1606,7 @@
       saveExchangeMeta(data.rates.BRL);
       showToast(`C\u00e2mbio: \u20ac1 = R$ ${TRIP.cambio.toFixed(2)}`);
       if (moreSubView === "expenses") renderExpenses();
+      if (moreSubView === "budget") renderBudget();
     } else {
       showToast("Sem conex\u00e3o \u2014 usando R$ " + TRIP.cambio.toFixed(2));
     }
@@ -1318,7 +1615,7 @@
   function exportPDF() {
     const dates = loadDates();
     const reservations = loadReservations();
-    let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Roteiro Paris</title>
+    let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Roteiro Roma + Paris</title>
       <style>
         @page { margin: 18mm; }
         body { font-family: 'Segoe UI', sans-serif; color: #1a1a1a; max-width: 800px; margin: auto; }
@@ -1336,7 +1633,7 @@
         .res-table th { background: #1F4E79; color: white; }
         footer { margin-top: 40px; font-size: 0.8em; color: #888; text-align: center; }
       </style></head><body>
-      <div class="cover"><div style="font-size:4em">\uD83C\uDDEB\uD83C\uDDF7</div><h1>${TRIP.title}</h1><p>${TRIP.subtitle}</p>
+      <div class="cover"><div style="font-size:4em">\uD83C\uDDEE\uD83C\uDDF9 \uD83C\uDDEB\uD83C\uDDF7</div><h1>${TRIP.title}</h1><p>${TRIP.subtitle}</p>
       <p>Gerado em ${new Date().toLocaleDateString("pt-BR")} \u00b7 v${APP_VERSION}</p></div>`;
     html += `<h2>Reservas</h2><table class="res-table"><tr><th>Atra\u00e7\u00e3o</th><th>Data</th><th>Hor\u00e1rio</th><th>C\u00f3digo</th></tr>`;
     RESERVATIONS.forEach((r) => {
@@ -1348,13 +1645,26 @@
       html += `<div class="qr-item"><img src="${qrUrl(r.url)}" alt="QR"><br>${r.name}</div>`;
     });
     html += `</div>`;
+    const budgetTot = tripBudgetRange();
+    const people = TRIP.travelers || 1;
+    html += `<h2>Custo aproximado (sem passagens)</h2><p>${BUDGET.note}</p>`;
+    html += `<p><strong>Por pessoa:</strong> ${formatRangeEur(budgetTot.min, budgetTot.max)} ${formatRangeBrl(budgetTot.min, budgetTot.max)}<br>`;
+    html += `<strong>Grupo (${people}):</strong> ${formatRangeEur(budgetTot.min * people, budgetTot.max * people)}</p>`;
+    BUDGET.categories.forEach((cat) => {
+      const r = budgetCategoryRange(cat);
+      html += `<h3>${cat.icon} ${cat.name} \u2014 ${formatRangeEur(r.min, r.max)}</h3><ul>`;
+      cat.items.forEach((item) => {
+        html += `<li>${item.name}: ${formatRangeEur(item.min, item.max ?? item.min)}</li>`;
+      });
+      html += `</ul>`;
+    });
     const notes = loadNotes();
     const { byDay, log } = expenseSummary();
     allDays().forEach((d) => {
-      html += `<h2>Dia ${d.id} \u2014 ${d.title}${dates[d.id] ? " (" + formatDateBR(dates[d.id]) + ")" : ""}${d.optional ? " (opcional)" : ""}</h2>`;
+      html += `<h2>${labelDay(d)} \u2014 ${d.title}${dates[d.id] ? " (" + formatDateBR(dates[d.id]) + ")" : ""} \u00b7 ${cityOf(d.city)}</h2>`;
       if (byDay[d.id]) html += `<p><strong>Gastos registrados:</strong> ${formatEur(byDay[d.id])}</p>`;
       d.activities.forEach((a) => {
-        html += `<div class="act"><span class="time">${a.time}</span> \u2014 <strong>${a.title}</strong><br>`;
+        html += `<div class="act"><span class="time">${activityWhen(d, a)}</span> \u2014 <strong>${a.title}</strong><br>`;
         if (a.place) html += `\uD83D\uDCCD ${a.place}<br>`;
         if (a.desc) html += `${a.desc}<br>`;
         if (notes[a.key]) html += `<em>Nota: ${notes[a.key]}</em><br>`;
@@ -1364,13 +1674,14 @@
     if (log.length) {
       html += `<h2>Gastos detalhados</h2><ul>`;
       log.forEach((e) => {
-        html += `<li>Dia ${e.dayId}: ${formatEur(e.amount)} \u2014 ${e.note}</li>`;
+        html += `<li>${labelDay(dayOf(e.dayId)) || "Dia " + e.dayId}: ${formatEur(e.amount)} \u2014 ${e.note}</li>`;
       });
       html += `</ul>`;
     }
     const e = loadEmergency();
-    html += `<h2>Emerg\u00eancia</h2><p><strong>Hotel:</strong> ${e.hotel}<br>${e.hotelAddress}<br>${e.hotelPhone}</p>`;
-    html += `<footer>Paris Trip App \u00b7 ${TRIP.appUrl}</footer></body></html>`;
+    html += `<h2>Emerg\u00eancia</h2><p><strong>Hotel Roma:</strong> ${e.hotelRoma}<br>${e.hotelRomaStay || ""}<br>${e.hotelRomaAddress}<br>${e.hotelRomaPhone}<br>${e.hotelRomaBooking || ""}</p>`;
+    html += `<p><strong>Hotel Paris:</strong> ${e.hotelParis}<br>${e.hotelParisStay || ""}<br>${e.hotelParisAddress}<br>${e.hotelParisPhone}<br>${e.hotelParisBooking || ""}<br>${e.hotelParisCheckin || ""}</p>`;
+    html += `<footer>Roma + Paris \u00b7 ${TRIP.appUrl}</footer></body></html>`;
     const w = window.open("", "_blank");
     w.document.write(html);
     w.document.close();
@@ -1435,43 +1746,51 @@
     navBtns.forEach((btn) => btn.classList.toggle("active", btn.dataset.view === view));
   }
 
-  function navigate(view) {
-    main.classList.add("view-exit");
-    setTimeout(() => {
-      currentView = view;
-      selectedDay = null;
-      moreSubView = null;
-      setActiveNav(view);
-      btnBack.classList.add("hidden");
-
-      switch (view) {
-        case "home": renderHome(); break;
-        case "today": renderToday(); break;
-        case "days": renderDayPicker(); break;
-        case "links": renderLinks(); break;
-        case "more": renderMore(); break;
-      }
-      main.classList.remove("view-exit");
-      main.classList.add("view-enter");
-      requestAnimationFrame(() => main.classList.remove("view-enter"));
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }, 120);
+  function showView(view) {
+    currentView = view;
+    selectedDay = null;
+    moreSubView = null;
+    setActiveNav(view);
+    btnBack?.classList.add("hidden");
+    switch (view) {
+      case "home": renderHome(); break;
+      case "today": renderToday(); break;
+      case "days": renderDayPicker(); break;
+      case "links": renderLinks(); break;
+      case "more": renderMore(); break;
+    }
+    if (!main) return;
+    main.classList.remove("view-exit");
+    main.classList.add("view-enter");
+    requestAnimationFrame(() => main.classList.remove("view-enter"));
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  btnBack.addEventListener("click", () => {
+  function navigate(view) {
+    if (!main) {
+      showView(view);
+      return;
+    }
+    main.classList.add("view-exit");
+    setTimeout(() => {
+      try { showView(view); } catch (err) { console.error(err); }
+    }, 80);
+  }
+
+  btnBack?.addEventListener("click", () => {
     if (currentView === "day-detail") navigate("days");
     else if (currentView === "today-detail") navigate("today");
     else if (moreSubView) { moreSubView = null; btnBack.classList.add("hidden"); renderMore(); }
     else navigate("home");
   });
 
-  btnFont.addEventListener("click", () => {
+  btnFont?.addEventListener("click", () => {
     const s = loadSettings();
     s.largeFont = !s.largeFont;
     saveSettings(s);
   });
 
-  btnTheme.addEventListener("click", () => {
+  btnTheme?.addEventListener("click", () => {
     const s = loadSettings();
     s.dark = !s.dark;
     saveSettings(s);
@@ -1495,24 +1814,56 @@
   navBtns.forEach((btn) => btn.addEventListener("click", () => navigate(btn.dataset.view)));
 
   /* ── Init ── */
-  parseDatesFromUrl();
-  const exMeta = loadExchangeMeta();
-  if (exMeta.rate) TRIP.cambio = exMeta.rate;
-  applySettings(loadSettings());
+  function registerSW() {
+    if (!("serviceWorker" in navigator)) return Promise.resolve();
+    return navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
 
-  const visits = loadJSON(KEYS.visitCount, 0) + 1;
-  saveJSON(KEYS.visitCount, visits);
+  function bootErrorHtml() {
+    return `<div class="empty-state"><h2>N\u00e3o foi poss\u00edvel abrir</h2><p>Recarregue a p\u00e1gina. Se o app ficou preso no carregamento, limpe os dados do site e abra de novo.</p><button class="btn-primary" type="button" id="btn-reload-app">Recarregar</button></div>`;
+  }
 
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+  function boot() {
+    try {
+      if (typeof TRIP === "undefined") throw new Error("data");
+      parseDatesFromUrl();
+      const exMeta = loadExchangeMeta();
+      if (exMeta && exMeta.rate) TRIP.cambio = exMeta.rate;
+      applySettings(loadSettings());
+      saveJSON(KEYS.visitCount, loadJSON(KEYS.visitCount, 0) + 1);
+      updateParisClock();
+      setInterval(updateParisClock, 30000);
+      hideSplash();
+      showOnboardingIfNeeded();
+      if (loadJSON(KEYS.onboarding, false)) maybeShowInstallBanner();
+      showView("home");
+      setTimeout(checkTomorrowReminder, 1500);
+      setTimeout(registerSW, 200);
+    } catch (err) {
+      console.error(err);
+      hideSplash();
+      registerSW().finally(() => {
+        try {
+          if (!sessionStorage.getItem("rp-boot-retry")) {
+            sessionStorage.setItem("rp-boot-retry", "1");
+            location.reload();
+            return;
+          }
+        } catch { /* sessionStorage blocked */ }
+        if (main) {
+          main.innerHTML = bootErrorHtml();
+          document.getElementById("btn-reload-app")?.addEventListener("click", () => {
+            try { sessionStorage.removeItem("rp-boot-retry"); } catch { /* noop */ }
+            location.reload();
+          });
+        }
+      });
+    }
+  }
 
-  updateParisClock();
-  setInterval(updateParisClock, 30000);
-  checkTomorrowReminder();
-
-  setTimeout(() => {
-    hideSplash();
-    showOnboardingIfNeeded();
-    if (loadJSON(KEYS.onboarding, false)) maybeShowInstallBanner();
-    navigate("home");
-  }, 900);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot, { once: true });
+  } else {
+    boot();
+  }
 })();

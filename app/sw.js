@@ -1,54 +1,52 @@
-const CACHE = "paris-trip-v8";
+const CACHE = "roma-paris-v8";
 
 const ASSETS = [
   "./",
   "./index.html",
   "./css/style.css",
-  "./css/fonts.css",
   "./js/data.js",
   "./js/app.js",
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
-  "./og-image.jpg",
-  "./images/placeholder.svg",
-  "./images/aeroporto.svg",
-  "./images/arco.svg",
-  "./images/bairro.svg",
-  "./images/cafe.svg",
-  "./images/champs.svg",
-  "./images/compras.svg",
-  "./images/disney.svg",
-  "./images/hotel.svg",
-  "./images/jantar.svg",
-  "./images/louvre.svg",
-  "./images/montmartre.svg",
-  "./images/notredame.svg",
-  "./images/orsay.svg",
-  "./images/seine.svg",
-  "./images/torre.svg",
-  "./images/trocadero.svg",
-  "./images/tuileries.svg",
-  "./images/versailles.svg",
-  "./fonts/plus-jakarta-sans-400.woff2",
-  "./fonts/plus-jakarta-sans-600.woff2",
-  "./fonts/plus-jakarta-sans-700.woff2",
-  "./fonts/plus-jakarta-sans-800.woff2",
 ];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
-  self.skipWaiting();
+  e.waitUntil(
+    caches.open(CACHE).then((cache) =>
+      Promise.all(ASSETS.map((url) => cache.add(url).catch(() => undefined)))
+    ).then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    )
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
+
+function bareUrl(request) {
+  const url = new URL(request.url);
+  url.search = "";
+  return url.href;
+}
+
+function isAppCode(url) {
+  const path = new URL(url).pathname;
+  return path.endsWith(".js") || path.endsWith(".css") || path.endsWith(".html") || /\/$/.test(path);
+}
+
+function fetchWithTimeout(request, ms) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout")), ms);
+    fetch(request).then(
+      (res) => { clearTimeout(timer); resolve(res); },
+      (err) => { clearTimeout(timer); reject(err); }
+    );
+  });
+}
 
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
@@ -59,15 +57,29 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  e.respondWith(
-    caches.match(e.request).then((cached) => {
-      const fetched = fetch(e.request).then((res) => {
-        if (res.ok && url.startsWith(self.location.origin)) {
-          caches.open(CACHE).then((c) => c.put(e.request, res.clone()));
+  if (!url.startsWith(self.location.origin)) return;
+
+  e.respondWith((async () => {
+    const cache = await caches.open(CACHE);
+
+    if (isAppCode(url)) {
+      try {
+        const res = await fetchWithTimeout(e.request, 2500);
+        if (res && res.ok) {
+          cache.put(e.request, res.clone()).catch(() => undefined);
+          return res;
         }
-        return res;
-      }).catch(() => cached);
-      return cached || fetched;
-    })
-  );
+      } catch { /* timeout or offline */ }
+      return (await cache.match(e.request))
+        || (await cache.match(bareUrl(e.request)))
+        || Response.error();
+    }
+
+    const cached = (await cache.match(e.request)) || (await cache.match(bareUrl(e.request)));
+    const refresh = fetch(e.request).then((res) => {
+      if (res.ok) cache.put(e.request, res.clone()).catch(() => undefined);
+      return res;
+    }).catch(() => null);
+    return cached || (await refresh) || Response.error();
+  })());
 });
