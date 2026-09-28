@@ -1,5 +1,5 @@
 /** Dados da viagem — Roma + Paris, 10 a 17 de outubro de 2026 */
-const APP_VERSION = "4.1.3";
+const APP_VERSION = "4.1.4";
 
 const TRIP = {
   title: "Roma + Paris",
