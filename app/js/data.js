@@ -1,5 +1,5 @@
 /** Dados da viagem — Roma + Paris, 10 a 17 de outubro de 2026 */
-const APP_VERSION = "4.1.4";
+const APP_VERSION = "4.2.0";
 
 const TRIP = {
   title: "Roma + Paris",
@@ -258,12 +258,24 @@ function cityLabel(city) {
   return "";
 }
 
-function getAllDays() {
-  return DAYS;
+const ITINERARY_KEY = "roma-paris-trip-itinerary";
+
+function activeItineraryId() {
+  try {
+    const id = JSON.parse(localStorage.getItem(ITINERARY_KEY) || "null");
+    return id === "opcional" ? "opcional" : "original";
+  } catch {
+    return "original";
+  }
 }
 
-function findDay(id) {
-  return DAYS.find((d) => d.id === Number(id));
+function dayChangesInOptional(dayId) {
+  return Object.prototype.hasOwnProperty.call(OPTIONAL_PLAN, Number(dayId));
+}
+
+function routeReservationTime(id) {
+  if (activeItineraryId() !== "opcional") return "";
+  return { arco: "14:15", versailles: "09:00" }[id] || "";
 }
 
 const RESERVATIONS = [
@@ -413,15 +425,120 @@ const DAYS = [
   },
 ];
 
+function prepareActivity(day, activity, idx) {
+  activity.key = `${day.id}-${idx}`;
+  activity.imageFallback = IMG_FALLBACK;
+  activity.city = activity.city || day.city;
+  if (!activity.maps && activity.place) activity.maps = mapsUrl(activity.place, activity.city);
+  if (activity.link && activity.needsReservation === undefined) activity.needsReservation = !!activity.highlight;
+  return activity;
+}
+
 DAYS.forEach((day) => {
-  day.activities.forEach((a, idx) => {
-    a.key = `${day.id}-${idx}`;
-    a.imageFallback = IMG_FALLBACK;
-    a.city = a.city || day.city;
-    if (!a.maps && a.place) a.maps = mapsUrl(a.place, a.city);
-    if (a.link && a.needsReservation === undefined) a.needsReservation = !!a.highlight;
-  });
+  day.activities.forEach((a, idx) => prepareActivity(day, a, idx));
 });
+
+function cloneActivity(activity) {
+  return { ...activity, link: activity.link ? { ...activity.link } : activity.link };
+}
+
+function activitiesOf(dayId) {
+  return DAYS.find((d) => d.id === dayId).activities.map(cloneActivity);
+}
+
+function presentActivities(day, activities) {
+  return activities.map((src, idx) => prepareActivity(day, cloneActivity(src), idx));
+}
+
+const OPTIONAL_PLAN = {};
+
+(function buildOptionalPlan() {
+  const sunday = activitiesOf(1);
+  const trevi = sunday[7];
+  const spagna = sunday[8];
+  const navona = sunday[5];
+  const campo = sunday[6];
+  const trastevere = sunday[10];
+  trevi.time = "16h05 – 16h35";
+  trevi.desc = "Logo depois do Panteão, sem voltar mais tarde.";
+  spagna.time = "16h40 – 17h15";
+  spagna.desc = "Escadaria Espanhola e fotos. Se o voo pesou, metrô A (Spagna → San Giovanni) e encerrem o dia por aqui.";
+  navona.time = "17h25 – 17h55";
+  navona.desc = "Na descida da Escadaria, em direção ao rio.";
+  campo.time = "18h00 – 18h30";
+  campo.desc = "Última parada antes da ponte. No domingo o mercado pode não estar montado.";
+  trastevere.time = "18h35 – 22h00";
+  trastevere.transport = "A pé / táxi na volta";
+  trastevere.desc = "A pé pela Ponte Sisto. Aperitivo e jantar. Volta de táxi.";
+  OPTIONAL_PLAN[1] = {
+    summary: "Pouso às 10h10. Depois do Panteão: Trevi, Escadaria, Navona, Campo de' Fiori e jantar em Trastevere, sem voltar para o outro lado do centro.",
+    activities: [sunday[0], sunday[1], sunday[2], sunday[3], sunday[4], trevi, spagna, navona, campo, trastevere],
+  };
+
+  const paris = activitiesOf(4);
+  const champs = paris[7];
+  const arco = paris[6];
+  const trocadero = paris[8];
+  champs.time = "13h30 – 14h15";
+  champs.transport = "A pé";
+  champs.desc = "Saindo da Concorde, só o trecho mais interessante, em direção ao Arco.";
+  arco.time = "14h15 – 15h15";
+  arco.transport = "A pé";
+  arco.desc = "Subida à cobertura depois de atravessar a avenida. Entrem por volta das 14h15.";
+  trocadero.time = "15h30 – 17h15";
+  trocadero.transport = "Metrô 6";
+  trocadero.desc = "Duas paradas: Charles de Gaulle–Étoile → Trocadéro. A foto daqui é de tarde; o pôr do sol fica para dentro da Torre.";
+  OPTIONAL_PLAN[4] = {
+    summary: "Notre-Dame, Louvre por fora e Tuileries de manhã. À tarde, Champs em direção ao Arco, metrô até o Trocadéro e Torre às 18h.",
+    activities: [paris[0], paris[1], paris[2], paris[3], paris[4], paris[5], champs, arco, trocadero, paris[9], paris[10], paris[11]],
+  };
+
+  const friday = activitiesOf(6);
+  const palace = friday[2];
+  const gardens = friday[3];
+  const lunch = friday[4];
+  const back = friday[5];
+  const montmartre = friday[6];
+  const opera = friday[7];
+  const galeries = friday[8];
+  const dinner = friday[10];
+  palace.time = "09h00 – 11h00";
+  palace.desc = "Salão dos Espelhos e apartamentos. Ingresso das 9h, na abertura. Estejam na segurança às 8h45. O Trianon está fechado nesta sexta. Passport ~€35.";
+  gardens.time = "11h00 – 12h30";
+  gardens.desc = "Jardins Musicais neste dia. Eixos principais e saída por volta das 12h30. Incluído no Passport. Sem Trianon.";
+  lunch.time = "12h30 – 13h15";
+  lunch.desc = "Almoço rápido, dentro ou fora do domínio.";
+  back.time = "13h15 – 14h45";
+  back.desc = "RER C de volta, com tempo de chegar a Montmartre antes do fim da tarde.";
+  montmartre.time = "15h15 – 19h00";
+  montmartre.desc = "Place du Tertre, ruelas e a vista do Sacré-Cœur. Fiquem até perto do pôr do sol, por volta das 19h.";
+  opera.time = "19h10 – 19h30";
+  opera.desc = "Só a fachada, sem entrar. A visita interna fica de fora neste roteiro.";
+  opera.priceEur = "0";
+  opera.priceNote = "";
+  opera.needsReservation = false;
+  opera.link = { label: "Site da Opéra", url: "https://www.operadeparis.fr/en/visits/palais-garnier" };
+  galeries.time = "19h30 – 20h15";
+  galeries.desc = "Cúpula e terraço, se a fila estiver curta. Compras opcionais.";
+  dinner.desc = "Último jantar da viagem, direto do centro.";
+  OPTIONAL_PLAN[6] = {
+    summary: "Versalhes na abertura das 9h, jardins até 12h30. Montmartre até o pôr do sol e Opéra só por fora. O Trianon está fechado.",
+    activities: [friday[0], friday[1], palace, gardens, lunch, back, montmartre, opera, galeries, dinner],
+  };
+})();
+
+function getAllDays() {
+  if (activeItineraryId() !== "opcional") return DAYS;
+  return DAYS.map((day) => {
+    const plan = OPTIONAL_PLAN[day.id];
+    if (!plan) return day;
+    return { ...day, summary: plan.summary, activities: presentActivities(day, plan.activities) };
+  });
+}
+
+function findDay(id) {
+  return getAllDays().find((d) => d.id === Number(id));
+}
 
 FLIGHTS.forEach((f) => {
   f.maps = mapsUrl(f.mapsPlace, f.city);

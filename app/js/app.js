@@ -18,6 +18,7 @@
     installDismissed: "roma-paris-trip-install-dismissed",
     notifyMeta: "roma-paris-trip-notify-meta",
     phraseLang: "roma-paris-trip-phrase-lang",
+    itinerary: "roma-paris-trip-itinerary",
   };
 
   const main = document.getElementById("app-main");
@@ -105,7 +106,7 @@
       const dates = loadDates();
       merged[r.id] = {
         code: stored[r.id]?.code || "",
-        time: stored[r.id]?.time || r.defaultTime || "",
+        time: stored[r.id]?.time || (typeof routeReservationTime === "function" ? routeReservationTime(r.id) : "") || r.defaultTime || "",
         date: stored[r.id]?.date || dates[r.dayId] || "",
       };
     });
@@ -499,6 +500,7 @@
       return `${r.id}:${d.date || ""}|${d.time || ""}|${encodeURIComponent(d.code || "")}`;
     }).filter((x) => !x.endsWith(":||")).join(",");
     if (rp) params.set("reservas", rp);
+    if (typeof activeItineraryId === "function" && activeItineraryId() === "opcional") params.set("roteiro", "opcional");
     const qs = params.toString();
     return qs ? `${base}/?${qs}` : `${base}/`;
   }
@@ -532,6 +534,7 @@
       emergencyData: loadJSON(KEYS.emergencyData, {}),
       settings: loadSettings(),
       exchangeMeta: loadExchangeMeta(),
+      itinerary: typeof activeItineraryId === "function" ? activeItineraryId() : "original",
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
@@ -556,6 +559,7 @@
         if (data.emergencyData) saveJSON(KEYS.emergencyData, data.emergencyData);
         if (data.settings) saveJSON(KEYS.settings, data.settings);
         if (data.exchangeMeta) saveJSON(KEYS.exchangeMeta, data.exchangeMeta);
+        if (data.itinerary === "opcional" || data.itinerary === "original") saveJSON(KEYS.itinerary, data.itinerary);
         applySettings(loadSettings());
         showToast("Backup restaurado!");
         navigate("home");
@@ -624,6 +628,7 @@
 
   /* ── URL sync de datas ── */
   function parseDatesFromUrl() {
+    parseItineraryFromUrl();
     const params = new URLSearchParams(location.search);
     const raw = params.get("datas");
     if (!raw) return;
@@ -634,6 +639,11 @@
     });
     saveJSON(KEYS.dates, dates);
     parseReservationsFromUrl();
+  }
+
+  function parseItineraryFromUrl() {
+    const id = new URLSearchParams(location.search).get("roteiro");
+    if (id === "opcional" || id === "original") saveJSON(KEYS.itinerary, id);
   }
 
   function buildShareUrl() {
@@ -649,6 +659,8 @@
     const url = new URL(location.href);
     if (pairs) url.searchParams.set("datas", pairs);
     else url.searchParams.delete("datas");
+    if (typeof activeItineraryId === "function" && activeItineraryId() === "opcional") url.searchParams.set("roteiro", "opcional");
+    else url.searchParams.delete("roteiro");
     history.replaceState(null, "", url.pathname + url.search + url.hash);
   }
 
@@ -919,6 +931,7 @@
         : `${formatEur(cost.min)} \u2013 ${formatEur(cost.max)}`;
 
     return `
+      ${routeSwitchHtml()}
       <div class="day-header" style="--day-color:${day.color};--day-accent:${day.accent}">
         <span class="badge">${day.emoji} ${labelDay(day)} \u00b7 ${dayWhen(day)}</span>
         <h2>${day.title}</h2>
@@ -954,6 +967,42 @@
       });
     });
     bindActivityNotes();
+    bindRouteSwitch();
+  }
+
+  function routeDayNote(day) {
+    if (typeof activeItineraryId !== "function" || activeItineraryId() !== "opcional") return "";
+    if (typeof dayChangesInOptional === "function" && dayChangesInOptional(day.id)) return " · ordem nova";
+    return "";
+  }
+
+  function routeSwitchHtml() {
+    const id = typeof activeItineraryId === "function" ? activeItineraryId() : "original";
+    const note = id === "opcional"
+      ? "Opcional ativo: domingo segue até Trastevere, quarta caminha os Champs até o Arco, sexta fica em Montmartre até o pôr do sol."
+      : "O opcional muda a ordem de domingo, quarta e sexta. Os outros dias ficam iguais.";
+    return `<div class="lang-tabs" role="group" aria-label="Escolher roteiro">
+      <button type="button" class="lang-tab${id === "original" ? " active" : ""}" data-route="original">Roteiro atual</button>
+      <button type="button" class="lang-tab${id === "opcional" ? " active" : ""}" data-route="opcional">Roteiro opcional</button>
+    </div>
+    <p class="intro-text">${note}</p>`;
+  }
+
+  function bindRouteSwitch() {
+    main.querySelectorAll("[data-route]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (typeof activeItineraryId === "function" && btn.dataset.route === activeItineraryId()) return;
+        saveJSON(KEYS.itinerary, btn.dataset.route);
+        showToast(btn.dataset.route === "opcional" ? "Roteiro opcional" : "Roteiro atual");
+        updateShareUrl();
+        if ((currentView === "day-detail" || currentView === "today-detail") && selectedDay) {
+          showDay(selectedDay.id, currentView === "today-detail");
+        } else if (currentView === "today") renderToday();
+        else if (currentView === "days") renderDayPicker();
+        else if (currentView === "links") renderLinks();
+        else renderHome();
+      });
+    });
   }
 
   function bindStatusBanner() {
@@ -1113,6 +1162,7 @@
         <h2>${TRIP.title}</h2>
         <p>5 viajantes \u00b7 2 pa\u00edses \u00b7 roteiro hor\u00e1rio a hor\u00e1rio.</p>
       </section>
+      ${routeSwitchHtml()}
       ${flightsCardHtml()}
       ${budgetHomeCardHtml()}
       <div id="weather-slot"><div class="weather-card loading">Carregando previs\u00e3o\u2026</div></div>
@@ -1143,7 +1193,7 @@
         const costLabel = cost.max === 0 ? "Gr\u00e1tis" : cost.min === cost.max ? `~\u20ac${cost.max}` : `\u20ac${cost.min}\u2013${cost.max}`;
         return `<button class="day-card" type="button" data-day="${d.id}" style="--day-color:${d.color}">
           <span class="emoji">${d.emoji}</span><div class="info"><h3>${labelDay(d)} \u00b7 ${dayWhen(d)} \u2014 ${d.title}</h3>
-          <p>${dates[d.id] ? formatDateBR(dates[d.id]) : d.weekday} \u00b7 ${cityOf(d.city)} \u00b7 ${costLabel}${ap.count ? ` \u00b7 ${ap.count}/${ap.total} \u2713` : ""}</p></div><span class="arrow">\u203a</span></button>`;
+          <p>${dates[d.id] ? formatDateBR(dates[d.id]) : d.weekday} \u00b7 ${cityOf(d.city)} \u00b7 ${costLabel}${ap.count ? ` \u00b7 ${ap.count}/${ap.total} \u2713` : ""}${routeDayNote(d)}</p></div><span class="arrow">\u203a</span></button>`;
       }).join("")}</div>`;
 
     main.querySelectorAll(".day-card").forEach((b) => b.addEventListener("click", () => showDay(Number(b.dataset.day))));
@@ -1151,6 +1201,7 @@
       inp.addEventListener("change", (e) => saveEmergencyField(e.target.dataset.emg, e.target.value));
     });
     bindStatusBanner();
+    bindRouteSwitch();
     document.getElementById("btn-open-budget")?.addEventListener("click", openBudget);
     loadWeatherSlot(false);
     } catch (err) {
@@ -1181,6 +1232,7 @@
     if (todayId == null) {
       const dates = loadDates();
       main.innerHTML = `
+        ${routeSwitchHtml()}
         <div class="empty-state">
           <span class="empty-icon">📅</span>
           <h2>Nenhum dia configurado para hoje</h2>
@@ -1188,10 +1240,11 @@
           <div class="day-grid">${allDays().map((d) => `
             <button class="day-card" type="button" data-day="${d.id}" style="--day-color:${d.color}">
               <span class="emoji">${d.emoji}</span><div class="info"><h3>${labelDay(d)}</h3>
-              <p>${dates[d.id] ? formatDateBR(dates[d.id]) : d.weekday} · ${cityOf(d.city)}</p></div></button>`).join("")}</div>
+              <p>${dates[d.id] ? formatDateBR(dates[d.id]) : d.weekday} · ${cityOf(d.city)}${routeDayNote(d)}</p></div></button>`).join("")}</div>
         </div>`;
       pageSubtitle.textContent = new Date().toLocaleDateString("pt-BR");
       main.querySelectorAll(".day-card").forEach((b) => b.addEventListener("click", () => showDay(Number(b.dataset.day), true)));
+      bindRouteSwitch();
       return;
     }
 
@@ -1210,10 +1263,11 @@
     pageTitle.textContent = "Roteiro";
     pageSubtitle.textContent = "Roma · Paris · 10 a 17/out";
     btnBack.classList.add("hidden");
-    main.innerHTML = `<p class="intro-text">Toque no dia para ver horários, fotos, mapas e preços.</p>
+    main.innerHTML = `${routeSwitchHtml()}
       <div class="day-grid">${allDays().map((d) => `<button class="day-card" type="button" data-day="${d.id}" style="--day-color:${d.color}">
-        <span class="emoji">${d.emoji}</span><div class="info"><h3>${labelDay(d)} · ${dayWhen(d)}</h3><p>${d.title} · ${cityOf(d.city)}${d.pace ? ` · ${d.pace}` : ""}</p></div><span class="arrow">›</span></button>`).join("")}</div>`;
+        <span class="emoji">${d.emoji}</span><div class="info"><h3>${labelDay(d)} · ${dayWhen(d)}</h3><p>${d.title} · ${cityOf(d.city)}${d.pace ? ` · ${d.pace}` : ""}${routeDayNote(d)}</p></div><span class="arrow">›</span></button>`).join("")}</div>`;
     main.querySelectorAll(".day-card").forEach((b) => b.addEventListener("click", () => showDay(Number(b.dataset.day))));
+    bindRouteSwitch();
   }
 
   function showDay(dayId, fromToday, activityKey) {
